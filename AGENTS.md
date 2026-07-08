@@ -1,8 +1,8 @@
 # AGENTS.md
 
 このファイルは、このリポジトリで作業するエージェント向けの開発ガイドです。
-現時点のリポジトリ実体は、設計書の `README.md` と、依存関係なしで動く最小構成の静的フロントエンドです。
-認証、バックエンド API、Prisma、MySQL、購入確定処理はまだ実装していません。
+現時点のリポジトリ実体は、設計書の `README.md`、依存関係なしで動く最小構成の静的フロントエンド、backend と database のベース構造です。
+認証、教科書 API、取引 API、Prisma モデル、MySQL マイグレーション、購入確定処理はまだ実装していません。
 実決済、クレジットカード登録、銀行口座登録、実在個人情報の入力・保存は本プロジェクトでは実装しません。
 メール、電話番号、住所、学生証、本人確認書類などが必要な画面では、架空のデモデータとして保存し、実データと同等のセキュリティで扱います。
 
@@ -19,6 +19,19 @@
 
 ```text
 webproFinalApp/
+├── backend/
+│   ├── prisma/
+│   ├── src/
+│   ├── tests/
+│   ├── .env.example
+│   ├── package.json
+│   └── tsconfig.json
+├── database/
+│   ├── migrations/
+│   ├── seeds/
+│   ├── README.md
+│   ├── notes.md
+│   └── seed.sql
 ├── frontend/
 │   ├── assets/
 │   ├── src/
@@ -31,8 +44,8 @@ webproFinalApp/
 ├── README.md
 ```
 
-現時点では `backend/`、`database/`、`docs/` は未作成です。
-本格実装へ進める場合は README の「5.3 ディレクトリ構成案」を基準にディレクトリを追加してください。
+現時点では `docs/` は未作成です。
+本格実装へ進める場合は README の「5.3 ディレクトリ構成案」を基準にファイルを追加してください。
 
 ## 主要ディレクトリ方針
 
@@ -91,11 +104,13 @@ project-root/
 
 ### backend
 
+- 現時点ではベース構造のみで、具体的なドメイン API は未実装。
 - Express API を `backend/src/` に実装する。
 - HTTP 入口は routes、リクエスト処理は controllers、業務ロジックは services、DB アクセスは repositories に分ける。
 - Prisma Client は `backend/src/lib/prisma.ts` に集約する。
 - 画面表示や React コンポーネントをバックエンドに置かない。
 - DB 更新が複数テーブルにまたがる処理は Prisma の transaction で実行する。
+- 具体的な機能を実装するまで、`auth`、`books`、`transactions` のドメインルートは追加しない。
 
 想定 API:
 
@@ -113,15 +128,16 @@ project-root/
 
 ### database
 
-- MVP の中心テーブルは `User`、`Book`、`Transaction`。
+- 現時点では DB モデル、migration、seed は未作成。
+- MVP の中心テーブルは将来的に `User`、`Book`、`Transaction` とする。
 - Prisma schema は `backend/prisma/schema.prisma` に置く。
 - MySQL を前提にする。
 - `users`、`books`、`transactions` は snake_case 複数形の DB テーブルとして扱う。
 
 ## 起動方法
 
-現時点の最小構成は `frontend/` 配下の静的 SPA です。
-外部依存はないため `npm install` は不要です。
+現時点の frontend は `frontend/` 配下の静的 SPA です。
+frontend は外部依存がないため `npm install` は不要です。
 
 ### frontend
 
@@ -150,6 +166,9 @@ npm run start
 ```
 
 ### backend
+
+現時点の backend は依存関係の定義と TypeScript ソースだけを持つベース構造です。
+実行する場合は依存関係のインストールが必要です。
 
 ```bash
 cd backend
@@ -198,7 +217,12 @@ cd frontend
 npm test
 ```
 
-backend 実装後は backend 側にも `npm test` を用意してください。
+現時点の backend には、依存関係なしで実行できる構造確認テストがあります。
+
+```bash
+cd backend
+npm test
+```
 
 重点的にテストする観点:
 

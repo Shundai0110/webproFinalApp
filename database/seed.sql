@@ -1,0 +1,3 @@
+-- Seed data is intentionally empty.
+-- Add demo-only seed rows when domain models are implemented.
+-- Do not add real personal data, payment data, card data, or bank account data.
