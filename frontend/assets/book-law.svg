@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="320" height="460" viewBox="0 0 320 460" role="img" aria-labelledby="title desc">
+  <title id="title">Law textbook cover</title>
+  <desc id="desc">Blue textbook cover for the demo marketplace.</desc>
+  <rect width="320" height="460" rx="12" fill="#285f9f"/>
+  <rect x="38" y="42" width="244" height="376" rx="8" fill="#f9fbff"/>
+  <text x="58" y="155" fill="#172d47" font-family="Arial, sans-serif" font-size="42" font-weight="700">Civil</text>
+  <text x="58" y="204" fill="#172d47" font-family="Arial, sans-serif" font-size="42" font-weight="700">Law</text>
+  <path d="M80 286h160M104 286l42-64 42 64M104 286c8 28 76 28 84 0" stroke="#285f9f" stroke-width="10" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  <rect x="88" y="350" width="144" height="14" rx="7" fill="#285f9f"/>
+</svg>

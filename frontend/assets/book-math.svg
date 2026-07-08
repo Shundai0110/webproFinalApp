@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="320" height="460" viewBox="0 0 320 460" role="img" aria-labelledby="title desc">
+  <title id="title">Math textbook cover</title>
+  <desc id="desc">Purple and white textbook cover for the demo marketplace.</desc>
+  <rect width="320" height="460" rx="12" fill="#594b8d"/>
+  <rect x="30" y="30" width="260" height="400" rx="10" fill="#fbfaf7"/>
+  <text x="52" y="152" fill="#2b2642" font-family="Arial, sans-serif" font-size="35" font-weight="700">Linear</text>
+  <text x="52" y="194" fill="#2b2642" font-family="Arial, sans-serif" font-size="35" font-weight="700">Algebra</text>
+  <path d="M70 302l48-48 48 48 48-48 36 36" stroke="#594b8d" stroke-width="12" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  <circle cx="70" cy="302" r="12" fill="#b36b00"/>
+  <circle cx="118" cy="254" r="12" fill="#b36b00"/>
+  <circle cx="166" cy="302" r="12" fill="#b36b00"/>
+  <circle cx="214" cy="254" r="12" fill="#b36b00"/>
+</svg>

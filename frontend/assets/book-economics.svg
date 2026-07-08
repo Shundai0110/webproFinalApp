@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="320" height="460" viewBox="0 0 320 460" role="img" aria-labelledby="title desc">
+  <title id="title">Economics textbook cover</title>
+  <desc id="desc">Green textbook cover for the demo marketplace.</desc>
+  <rect width="320" height="460" rx="12" fill="#1f7a5c"/>
+  <rect x="28" y="32" width="264" height="396" rx="8" fill="#f8fbfa" opacity="0.92"/>
+  <rect x="52" y="64" width="216" height="12" rx="6" fill="#1f7a5c"/>
+  <text x="52" y="162" fill="#18211f" font-family="Arial, sans-serif" font-size="34" font-weight="700">Economics</text>
+  <text x="52" y="204" fill="#18211f" font-family="Arial, sans-serif" font-size="34" font-weight="700">Intro</text>
+  <circle cx="230" cy="330" r="44" fill="#dfeee8"/>
+  <path d="M72 334h128M72 362h96M72 390h140" stroke="#1f7a5c" stroke-width="10" stroke-linecap="round"/>
+</svg>

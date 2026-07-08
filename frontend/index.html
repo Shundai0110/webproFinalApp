@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Keio Book Market</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="side-panel" aria-label="アカウント">
+        <div class="brand">
+          <div class="brand-mark" aria-hidden="true">K</div>
+          <div>
+            <p class="brand-kicker">Keio</p>
+            <h1>Book Market</h1>
+          </div>
+        </div>
+
+        <section class="profile-panel" aria-label="プロフィール">
+          <div class="avatar" aria-hidden="true">G</div>
+          <div>
+            <p id="session-name" class="profile-name">Guest</p>
+            <p id="session-meta" class="profile-meta">認証準備中</p>
+          </div>
+        </section>
+
+        <nav class="quick-nav" aria-label="主要画面">
+          <a href="#books">教科書</a>
+          <a href="#new-listing">出品</a>
+          <a href="#transactions">取引</a>
+        </nav>
+
+        <section id="transactions" class="transaction-panel" aria-label="取引状況">
+          <div class="panel-heading">
+            <h2>取引</h2>
+            <span id="transaction-count" class="count-pill">0</span>
+          </div>
+          <ul id="transaction-list" class="transaction-list"></ul>
+        </section>
+      </aside>
+
+      <main class="workspace">
+        <header class="top-bar">
+          <div>
+            <p class="page-kicker">Textbook exchange</p>
+            <h2>慶應生向け教科書売買</h2>
+          </div>
+          <button id="reset-demo" class="ghost-button" type="button">デモ初期化</button>
+        </header>
+
+        <section id="books" class="toolbar" aria-label="検索条件">
+          <label class="search-box">
+            <span>検索</span>
+            <input id="search-input" type="search" placeholder="教科書名・授業名" autocomplete="off" />
+          </label>
+
+          <label>
+            <span>学部</span>
+            <select id="faculty-filter">
+              <option value="">すべて</option>
+            </select>
+          </label>
+
+          <label>
+            <span>状態</span>
+            <select id="status-filter">
+              <option value="">すべて</option>
+              <option value="AVAILABLE">出品中</option>
+              <option value="NEGOTIATING">交渉中</option>
+              <option value="SOLD">売却済み</option>
+            </select>
+          </label>
+        </section>
+
+        <section class="content-grid">
+          <div class="book-region" aria-live="polite">
+            <div class="section-heading">
+              <h2>教科書一覧</h2>
+              <span id="result-count" class="muted"></span>
+            </div>
+            <div id="book-list" class="book-list"></div>
+          </div>
+
+          <aside class="detail-region" aria-label="教科書詳細">
+            <div id="book-detail" class="book-detail"></div>
+          </aside>
+        </section>
+
+        <section id="new-listing" class="listing-form-section">
+          <div class="section-heading">
+            <h2>出品</h2>
+            <span class="muted">local draft</span>
+          </div>
+
+          <form id="listing-form" class="listing-form">
+            <label>
+              <span>教科書名</span>
+              <input name="title" required maxlength="80" placeholder="例: 経済学入門" />
+            </label>
+            <label>
+              <span>授業名</span>
+              <input name="course" required maxlength="80" placeholder="例: 経済学 I" />
+            </label>
+            <label>
+              <span>学部</span>
+              <select name="faculty" required>
+                <option value="経済学部">経済学部</option>
+                <option value="法学部">法学部</option>
+                <option value="商学部">商学部</option>
+                <option value="理工学部">理工学部</option>
+                <option value="文学部">文学部</option>
+              </select>
+            </label>
+            <label>
+              <span>使用年度</span>
+              <input name="usedYear" required type="number" min="2000" max="2100" value="2026" />
+            </label>
+            <label>
+              <span>価格</span>
+              <input name="price" required type="number" min="0" step="100" value="1000" />
+            </label>
+            <label>
+              <span>種別</span>
+              <select name="materialType">
+                <option value="REQUIRED">必須教材</option>
+                <option value="REFERENCE">参考書</option>
+              </select>
+            </label>
+            <label class="wide-field">
+              <span>状態メモ</span>
+              <textarea name="description" rows="3" maxlength="240" placeholder="書き込み、版、受け渡し場所など"></textarea>
+            </label>
+            <button class="primary-button" type="submit">出品を追加</button>
+          </form>
+        </section>
+      </main>
+    </div>
+
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+    <script type="module" src="./src/app.js"></script>
+  </body>
+</html>

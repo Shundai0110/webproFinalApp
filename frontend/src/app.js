@@ -1,0 +1,300 @@
+import {
+  createListing,
+  getSession,
+  listBooks,
+  listTransactions,
+  requestPurchase,
+  resetDemoData,
+} from "./apiClient.js";
+import { materialTypeLabels, statusLabels } from "./data.js";
+
+const state = {
+  filters: {
+    search: "",
+    faculty: "",
+    status: "",
+  },
+  activeBookId: "",
+};
+
+const refs = {
+  sessionName: document.querySelector("#session-name"),
+  sessionMeta: document.querySelector("#session-meta"),
+  searchInput: document.querySelector("#search-input"),
+  facultyFilter: document.querySelector("#faculty-filter"),
+  statusFilter: document.querySelector("#status-filter"),
+  resultCount: document.querySelector("#result-count"),
+  bookList: document.querySelector("#book-list"),
+  bookDetail: document.querySelector("#book-detail"),
+  listingForm: document.querySelector("#listing-form"),
+  transactionCount: document.querySelector("#transaction-count"),
+  transactionList: document.querySelector("#transaction-list"),
+  resetDemo: document.querySelector("#reset-demo"),
+  toast: document.querySelector("#toast"),
+};
+
+let toastTimer = 0;
+
+function formatPrice(price) {
+  return price === 0 ? "譲渡" : `${price.toLocaleString("ja-JP")}円`;
+}
+
+function showToast(message) {
+  window.clearTimeout(toastTimer);
+  refs.toast.textContent = message;
+  refs.toast.classList.add("is-visible");
+  toastTimer = window.setTimeout(() => {
+    refs.toast.classList.remove("is-visible");
+  }, 2400);
+}
+
+function createStatusBadge(status) {
+  const badge = document.createElement("span");
+  badge.className = `status-badge status-${status}`;
+  badge.textContent = statusLabels[status] || status;
+  return badge;
+}
+
+function updateSession() {
+  const session = getSession();
+  refs.sessionName.textContent = session.name;
+  refs.sessionMeta.textContent = `${session.faculty} ${session.year}年`;
+}
+
+function updateFacultyOptions(books) {
+  const current = refs.facultyFilter.value;
+  const faculties = [...new Set(books.map((book) => book.faculty))].sort();
+  refs.facultyFilter.replaceChildren(new Option("すべて", ""));
+  faculties.forEach((faculty) => {
+    refs.facultyFilter.append(new Option(faculty, faculty));
+  });
+  refs.facultyFilter.value = faculties.includes(current) ? current : "";
+}
+
+function renderTransactions() {
+  const transactions = listTransactions();
+  refs.transactionCount.textContent = String(transactions.length);
+  refs.transactionList.replaceChildren();
+
+  if (transactions.length === 0) {
+    const item = document.createElement("li");
+    item.textContent = "取引はまだありません";
+    refs.transactionList.append(item);
+    return;
+  }
+
+  transactions.slice(0, 4).forEach((transaction) => {
+    const item = document.createElement("li");
+    const title = document.createElement("strong");
+    const meta = document.createElement("div");
+
+    title.textContent = transaction.bookTitle;
+    meta.textContent = `${statusLabels[transaction.status] || "承諾待ち"} / ${formatPrice(
+      transaction.offeredPrice,
+    )}`;
+
+    item.append(title, meta);
+    refs.transactionList.append(item);
+  });
+}
+
+function selectBook(bookId) {
+  state.activeBookId = bookId;
+  render();
+}
+
+function renderBooks(books) {
+  refs.bookList.replaceChildren();
+  refs.resultCount.textContent = `${books.length}件`;
+
+  if (books.length === 0) {
+    const empty = document.createElement("div");
+    empty.className = "empty-state";
+    empty.textContent = "条件に一致する教科書はありません";
+    refs.bookList.append(empty);
+    return;
+  }
+
+  books.forEach((book) => {
+    const card = document.createElement("article");
+    const cover = document.createElement("img");
+    const body = document.createElement("div");
+    const header = document.createElement("div");
+    const title = document.createElement("h3");
+    const meta = document.createElement("p");
+    const price = document.createElement("span");
+    const action = document.createElement("button");
+
+    card.className = "book-card";
+    card.setAttribute("aria-current", String(book.id === state.activeBookId));
+
+    cover.className = "book-cover";
+    cover.src = book.imageUrl;
+    cover.alt = `${book.title}の表紙`;
+
+    body.className = "book-card-body";
+    header.className = "book-card-header";
+    title.className = "book-title";
+    title.textContent = book.title;
+
+    meta.className = "book-meta";
+    meta.append(
+      `${book.course} / ${book.faculty}`,
+      document.createElement("br"),
+      `${book.usedYear}年度 / ${materialTypeLabels[book.materialType]}`,
+    );
+
+    price.className = "price";
+    price.textContent = formatPrice(book.price);
+
+    action.className = "small-button";
+    action.type = "button";
+    action.textContent = "詳細";
+    action.addEventListener("click", () => selectBook(book.id));
+
+    header.append(title, createStatusBadge(book.status));
+    body.append(header, meta, price, action);
+    card.append(cover, body);
+    refs.bookList.append(card);
+  });
+}
+
+function renderDetail(book) {
+  refs.bookDetail.replaceChildren();
+
+  if (!book) {
+    const empty = document.createElement("div");
+    empty.className = "detail-empty";
+    empty.textContent = "教科書を選択してください";
+    refs.bookDetail.append(empty);
+    return;
+  }
+
+  const cover = document.createElement("img");
+  const body = document.createElement("div");
+  const titleRow = document.createElement("div");
+  const title = document.createElement("h3");
+  const detailList = document.createElement("dl");
+  const description = document.createElement("p");
+  const purchaseButton = document.createElement("button");
+
+  cover.className = "detail-cover";
+  cover.src = book.imageUrl;
+  cover.alt = `${book.title}の表紙`;
+
+  body.className = "detail-body";
+  titleRow.className = "detail-title-row";
+  title.textContent = book.title;
+  titleRow.append(title, createStatusBadge(book.status));
+
+  detailList.className = "detail-list";
+  [
+    ["価格", formatPrice(book.price)],
+    ["授業", book.course],
+    ["学部", book.faculty],
+    ["年度", `${book.usedYear}年度`],
+    ["種別", materialTypeLabels[book.materialType]],
+    ["出品者", book.sellerName],
+  ].forEach(([term, value]) => {
+    const cell = document.createElement("div");
+    const dt = document.createElement("dt");
+    const dd = document.createElement("dd");
+    dt.textContent = term;
+    dd.textContent = value;
+    cell.append(dt, dd);
+    detailList.append(cell);
+  });
+
+  description.className = "description";
+  description.textContent = book.description;
+
+  purchaseButton.className = "primary-button";
+  purchaseButton.type = "button";
+  purchaseButton.textContent = book.status === "AVAILABLE" ? "購入相談を開始" : "購入相談不可";
+  purchaseButton.disabled = book.status !== "AVAILABLE";
+  purchaseButton.addEventListener("click", () => {
+    try {
+      const transaction = requestPurchase(book.id);
+      state.activeBookId = transaction.bookId;
+      showToast("購入相談を作成しました");
+      render();
+    } catch (error) {
+      showToast(error.message);
+    }
+  });
+
+  body.append(titleRow, detailList, description, purchaseButton);
+  refs.bookDetail.append(cover, body);
+}
+
+function render() {
+  const allBooks = listBooks();
+  updateFacultyOptions(allBooks);
+  refs.facultyFilter.value = state.filters.faculty;
+
+  const books = listBooks(state.filters);
+  if (!state.activeBookId && books[0]) {
+    state.activeBookId = books[0].id;
+  }
+
+  const activeBook = books.find((book) => book.id === state.activeBookId) || books[0] || null;
+  if (activeBook) {
+    state.activeBookId = activeBook.id;
+  }
+
+  renderBooks(books);
+  renderDetail(activeBook);
+  renderTransactions();
+}
+
+function bindEvents() {
+  refs.searchInput.addEventListener("input", (event) => {
+    state.filters.search = event.target.value;
+    state.activeBookId = "";
+    render();
+  });
+
+  refs.facultyFilter.addEventListener("change", (event) => {
+    state.filters.faculty = event.target.value;
+    state.activeBookId = "";
+    render();
+  });
+
+  refs.statusFilter.addEventListener("change", (event) => {
+    state.filters.status = event.target.value;
+    state.activeBookId = "";
+    render();
+  });
+
+  refs.listingForm.addEventListener("submit", (event) => {
+    event.preventDefault();
+    const formData = new FormData(refs.listingForm);
+    const input = Object.fromEntries(formData.entries());
+
+    try {
+      const book = createListing(input);
+      refs.listingForm.reset();
+      state.activeBookId = book.id;
+      state.filters.status = "";
+      refs.statusFilter.value = "";
+      showToast("出品を追加しました");
+      render();
+    } catch (error) {
+      showToast(error.message);
+    }
+  });
+
+  refs.resetDemo.addEventListener("click", () => {
+    resetDemoData();
+    state.activeBookId = "";
+    state.filters = { search: "", faculty: "", status: "" };
+    refs.searchInput.value = "";
+    refs.statusFilter.value = "";
+    showToast("デモデータを初期化しました");
+    render();
+  });
+}
+
+updateSession();
+bindEvents();
+render();

@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="320" height="460" viewBox="0 0 320 460" role="img" aria-labelledby="title desc">
+  <title id="title">Business textbook cover</title>
+  <desc id="desc">Amber textbook cover for the demo marketplace.</desc>
+  <rect width="320" height="460" rx="12" fill="#b36b00"/>
+  <rect x="28" y="32" width="264" height="396" rx="8" fill="#fff9ed"/>
+  <text x="54" y="150" fill="#3d2c13" font-family="Arial, sans-serif" font-size="34" font-weight="700">Marketing</text>
+  <text x="54" y="192" fill="#3d2c13" font-family="Arial, sans-serif" font-size="34" font-weight="700">Basics</text>
+  <rect x="64" y="292" width="42" height="76" rx="6" fill="#b36b00"/>
+  <rect x="128" y="252" width="42" height="116" rx="6" fill="#285f9f"/>
+  <rect x="192" y="216" width="42" height="152" rx="6" fill="#1f7a5c"/>
+</svg>

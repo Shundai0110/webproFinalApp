@@ -1,7 +1,8 @@
 # AGENTS.md
 
 このファイルは、このリポジトリで作業するエージェント向けの開発ガイドです。
-現時点のリポジトリ実体は `README.md` のみで、アプリケーションコード、`package.json`、テスト設定、環境変数サンプルはまだ追加されていません。
+現時点のリポジトリ実体は、設計書の `README.md` と、依存関係なしで動く最小構成の静的フロントエンドです。
+認証、バックエンド API、Prisma、MySQL、決済・購入確定処理はまだ実装していません。
 
 ## プロジェクト概要
 
@@ -15,12 +16,20 @@
 
 ```text
 webproFinalApp/
+├── frontend/
+│   ├── assets/
+│   ├── src/
+│   ├── tests/
+│   ├── index.html
+│   ├── package.json
+│   ├── server.mjs
+│   └── styles.css
+├── AGENTS.md
 ├── README.md
-└── AGENTS.md
 ```
 
-現時点では `frontend/`、`backend/`、`database/`、`docs/` は未作成です。
-実装時は README の「5.3 ディレクトリ構成案」を基準にディレクトリを作成してください。
+現時点では `backend/`、`database/`、`docs/` は未作成です。
+本格実装へ進める場合は README の「5.3 ディレクトリ構成案」を基準にディレクトリを追加してください。
 
 ## 主要ディレクトリ方針
 
@@ -108,21 +117,31 @@ project-root/
 
 ## 起動方法
 
-現時点では `package.json` が存在しないため、実行可能な起動コマンドはありません。
-実装後は次の方針で npm scripts を用意してください。
+現時点の最小構成は `frontend/` 配下の静的 SPA です。
+外部依存はないため `npm install` は不要です。
 
 ### frontend
 
 ```bash
 cd frontend
-npm install
 npm run dev
 ```
 
-本番ビルド:
+ローカル URL:
+
+```text
+http://127.0.0.1:4173
+```
+
+`npm run dev` は `node server.mjs` を実行します。
+現在は静的ファイルのみのため、本番ビルド手順はありません。
+
+将来 Next.js に移行した場合の想定:
 
 ```bash
 cd frontend
+npm install
+npm run dev
 npm run build
 npm run start
 ```
@@ -169,8 +188,14 @@ npx prisma generate
 
 ## テスト方法
 
-現時点ではテストランナーや npm scripts が存在しないため、実行可能なテストコマンドはありません。
-実装後は frontend と backend に `npm test` を用意してください。
+現時点では Node.js 標準の `node:test` を使った smoke test を用意しています。
+
+```bash
+cd frontend
+npm test
+```
+
+backend 実装後は backend 側にも `npm test` を用意してください。
 
 重点的にテストする観点:
 
@@ -182,6 +207,10 @@ npx prisma generate
 - 関係者以外が Transaction を承諾できないこと。
 - 購入者、出品者の双方承諾時のみ `Transaction` が `COMPLETED` になり、`Book` が `SOLD` になること。
 - 取引成立処理が DB トランザクション内で実行されること。
+
+現在の最小 SPA では、教科書データと購入相談データを `localStorage` に保存します。
+`frontend/src/apiClient.js` は将来 Express API に差し替える前提の境界です。
+購入は `PENDING` の相談作成までで、双方承諾や購入確定は未実装です。
 
 README にある重要テストケース:
 

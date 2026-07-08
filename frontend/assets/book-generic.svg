@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="320" height="460" viewBox="0 0 320 460" role="img" aria-labelledby="title desc">
+  <title id="title">Generic textbook cover</title>
+  <desc id="desc">Neutral textbook cover for newly added demo listings.</desc>
+  <rect width="320" height="460" rx="12" fill="#2d3b39"/>
+  <rect x="34" y="38" width="252" height="384" rx="8" fill="#f5f7f6"/>
+  <text x="58" y="164" fill="#18211f" font-family="Arial, sans-serif" font-size="36" font-weight="700">Textbook</text>
+  <text x="58" y="208" fill="#18211f" font-family="Arial, sans-serif" font-size="28" font-weight="700">Listing</text>
+  <path d="M70 306h180M70 338h140M70 370h166" stroke="#1f7a5c" stroke-width="12" stroke-linecap="round"/>
+</svg>
