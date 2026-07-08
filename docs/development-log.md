@@ -124,3 +124,23 @@
 
 ### 次にやること
 - このログ追加を commit する。
+
+## 2026-07-08 16:18
+## 未コミット, docs: 作業ログの保存先を development-log に統一
+### 依頼内容
+- `docs/codex-work-log.md` ではなく、`docs/development-log.md` に保存するように書き換える。
+
+### 実施内容
+- 変更したファイル: `AGENTS.md`, `docs/development-log.md`
+- `AGENTS.md` の作業ログ保存先を `docs/codex-work-log.md` から `docs/development-log.md` に変更した。
+- `/prompt1` の「作業後ログ追記」と `/prompt2` の「有料外部サービス禁止・無料プランのみ使用」ルールは、`AGENTS.md` の常時適用ルールとして維持した。
+- 今回の作業結果を `docs/development-log.md` に追記した。
+- 誤って作成していた `docs/codex-work-log.md` は不要になるため削除する。
+
+### 確認内容
+- 実行したコマンド: `date '+%y.%m.%d %H:%M'`, `date '+%Y-%m-%d %H:%M'`, `rg -n "codex-work-log|development-log|作業ログ|常時適用" AGENTS.md docs`, `git status --short`, `sed -n '100,180p' docs/development-log.md`, `sed -n '48,68p' AGENTS.md`, `sed -n '1,120p' docs/codex-work-log.md`, `rg -n "codex-work-log" AGENTS.md docs || true`, `git diff --check`, `cd frontend && npm test`, `cd backend && npm test`
+- テスト結果: `git diff --check` 成功。frontend smoke test 成功。backend 構造確認テスト成功。
+- 未確認事項: なし。`codex-work-log` の文字列は `docs/development-log.md` の作業履歴内にのみ残っている。
+
+### 次にやること
+- 今回のログ保存先修正を commit する。
