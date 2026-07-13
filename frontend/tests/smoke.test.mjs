@@ -30,6 +30,8 @@ test("api client exposes future backend seams", async () => {
   assert.match(apiClient, /export function listBooks/);
   assert.match(apiClient, /export function createListing/);
   assert.match(apiClient, /export function requestPurchase/);
+  assert.match(apiClient, /export function approveTransaction/);
+  assert.match(apiClient, /export function listNotifications/);
   assert.match(apiClient, /export function startDemoSession/);
   assert.match(apiClient, /export function updateProfile/);
 });
@@ -40,4 +42,13 @@ test("own listings have a visible marker", async () => {
   assert.match(app, /is-own-listing/);
   assert.match(app, /自分の出品/);
   assert.match(styles, /\.book-card\.is-own-listing/);
+});
+
+test("payment UI is demo points only", async () => {
+  const html = await readFile(join(root, "index.html"), "utf8");
+  const app = await readFile(join(root, "src", "app.js"), "utf8");
+  assert.match(app, /仮想ポイント支払い/);
+  assert.match(app, /換金不可・現金価値なし/);
+  assert.match(app, /購入・支払いを承諾/);
+  assert.doesNotMatch(html, /card-number|cvc|bank-account/i);
 });

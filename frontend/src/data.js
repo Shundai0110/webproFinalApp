@@ -10,6 +10,12 @@ export const materialTypeLabels = {
   REFERENCE: "参考書",
 };
 
+export const transactionStatusLabels = {
+  PENDING: "双方承諾待ち",
+  COMPLETED: "取引完了",
+  CANCELLED: "キャンセル",
+};
+
 export const faculties = ["文学部", "経済学部", "法学部", "商学部", "理工学部"];
 
 // すべて架空のデモアカウントで、実在する連絡先や認証情報は持たせない。

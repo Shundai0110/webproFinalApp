@@ -236,7 +236,8 @@ label span {
   background: rgba(255, 255, 255, 0.12);
 }
 
-.transaction-panel {
+.transaction-panel,
+.notification-panel {
   min-height: 0;
 }
 
@@ -274,6 +275,52 @@ label span {
   background: rgba(255, 255, 255, 0.05);
   color: #dce8e4;
   font-size: 0.86rem;
+}
+
+.transaction-list li.is-completed {
+  border-color: rgba(142, 224, 189, 0.5);
+}
+
+.transaction-approvals {
+  margin-top: 7px;
+  color: #9bb8af;
+  font-size: 0.74rem;
+  line-height: 1.45;
+}
+
+.transaction-action {
+  width: 100%;
+  min-height: 34px;
+  margin-top: 9px;
+  border: 1px solid #4fa783;
+  border-radius: 7px;
+  background: #2f8064;
+  color: white;
+  font-size: 0.76rem;
+  font-weight: 800;
+}
+
+.transaction-action:disabled {
+  cursor: not-allowed;
+  border-color: rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.08);
+  color: #9bb8af;
+}
+
+.notification-list {
+  display: grid;
+  gap: 8px;
+  padding: 0;
+  margin: 12px 0 0;
+  list-style: none;
+}
+
+.notification-list li {
+  padding-left: 10px;
+  border-left: 3px solid #4fa783;
+  color: #dce8e4;
+  font-size: 0.78rem;
+  line-height: 1.5;
 }
 
 .workspace {
@@ -565,6 +612,65 @@ a:focus-visible {
   margin: 0;
   color: #374642;
   line-height: 1.65;
+}
+
+.payment-preview {
+  display: grid;
+  gap: 11px;
+  padding: 14px;
+  border-left: 4px solid var(--blue);
+  background: #eef6ff;
+}
+
+.payment-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.payment-heading h4 {
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+.demo-payment-badge {
+  border-radius: 999px;
+  padding: 3px 7px;
+  background: var(--blue);
+  color: white;
+  font-size: 0.66rem;
+  font-weight: 800;
+}
+
+.payment-preview dl {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+}
+
+.payment-preview dl div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.payment-preview dt {
+  color: var(--muted);
+  font-size: 0.76rem;
+}
+
+.payment-preview dd {
+  margin: 0;
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.payment-notice {
+  margin: 0;
+  color: #415d79;
+  font-size: 0.72rem;
+  line-height: 1.5;
 }
 
 .listing-form-section {

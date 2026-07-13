@@ -1,10 +1,13 @@
 import assert from "node:assert/strict";
 import { beforeEach, test } from "node:test";
 import {
+  approveTransaction,
   createListing,
   endDemoSession,
   getSession,
   listDemoUsers,
+  listBooks,
+  listNotifications,
   listTransactions,
   requestPurchase,
   startDemoSession,
@@ -45,6 +48,11 @@ test("operations require an active demo session", () => {
     /デモアカウントを選択/,
   );
   assert.throws(() => requestPurchase("book-economics-2025"), /デモアカウントを選択/);
+
+  startDemoSession("demo-user-suzuki");
+  const transaction = requestPurchase("book-economics-2025");
+  endDemoSession();
+  assert.throws(() => approveTransaction(transaction.id), /デモアカウントを選択/);
 });
 
 test("every authenticated user can list and purchase other users listings", () => {
@@ -143,4 +151,84 @@ test("profile edits keep ownership tied to the stable user id", () => {
   assert.equal(listing.sellerId, "demo-user-sato");
   assert.equal(listing.sellerName, "Demo Editor");
   assert.throws(() => requestPurchase(listing.id), /自分が出品した教科書は購入できません/);
+});
+
+test("one approval keeps the transaction pending without moving points", () => {
+  startDemoSession("demo-user-suzuki");
+  const before = getSession().pointBalance;
+  const transaction = requestPurchase("book-economics-2025");
+  const updated = approveTransaction(transaction.id);
+
+  assert.equal(updated.status, "PENDING");
+  assert.equal(updated.buyerApproved, true);
+  assert.equal(updated.sellerApproved, false);
+  assert.equal(getSession().pointBalance, before);
+  assert.equal(listBooks().find((book) => book.id === transaction.bookId).status, "NEGOTIATING");
+  assert.deepEqual(listNotifications(), []);
+});
+
+test("insufficient demo points prevent a purchase request at the API boundary", () => {
+  startDemoSession("demo-user-suzuki");
+  const users = listDemoUsers();
+  users.find((user) => user.id === "demo-user-suzuki").pointBalance = 100;
+  globalThis.localStorage.setItem("keio-book-market.users.v5", JSON.stringify(users));
+
+  assert.throws(() => requestPurchase("book-civil-law-2024"), /残高が不足/);
+  assert.equal(listBooks().find((book) => book.id === "book-civil-law-2024").status, "AVAILABLE");
+  assert.deepEqual(listTransactions(), []);
+});
+
+test("both approvals complete the trade and move demo points once", () => {
+  startDemoSession("demo-user-suzuki");
+  const transaction = requestPurchase("book-economics-2025");
+  approveTransaction(transaction.id);
+
+  startDemoSession("demo-user-tanaka");
+  const completed = approveTransaction(transaction.id);
+  assert.equal(completed.status, "COMPLETED");
+  assert.equal(completed.buyerApproved, true);
+  assert.equal(completed.sellerApproved, true);
+  assert.deepEqual(completed.pointTransfer, { amount: 1200, unit: "DEMO_POINT" });
+  assert.equal(getSession().pointBalance, 4400);
+  assert.equal(listBooks().find((book) => book.id === transaction.bookId).status, "SOLD");
+  assert.equal(listNotifications().length, 1);
+
+  const sellerBalance = getSession().pointBalance;
+  assert.throws(() => approveTransaction(transaction.id), /すでに終了/);
+  assert.equal(getSession().pointBalance, sellerBalance);
+
+  startDemoSession("demo-user-suzuki");
+  assert.equal(getSession().pointBalance, 3800);
+  assert.equal(listNotifications().length, 1);
+});
+
+test("an unrelated user cannot approve a transaction", () => {
+  startDemoSession("demo-user-suzuki");
+  const transaction = requestPurchase("book-economics-2025");
+
+  startDemoSession("demo-user-sato");
+  assert.throws(() => approveTransaction(transaction.id), /承諾する権限がありません/);
+  assert.deepEqual(listTransactions(), []);
+  assert.deepEqual(listNotifications(), []);
+});
+
+test("insufficient demo points prevent buyer approval and completion", () => {
+  startDemoSession("demo-user-suzuki");
+  const transaction = requestPurchase("book-civil-law-2024");
+
+  startDemoSession("demo-user-sato");
+  const sellerApproved = approveTransaction(transaction.id);
+  assert.equal(sellerApproved.sellerApproved, true);
+
+  const users = listDemoUsers();
+  users.find((user) => user.id === "demo-user-suzuki").pointBalance = 100;
+  globalThis.localStorage.setItem("keio-book-market.users.v5", JSON.stringify(users));
+
+  startDemoSession("demo-user-suzuki");
+  assert.throws(() => approveTransaction(transaction.id), /残高が不足/);
+  const pending = listTransactions().find((candidate) => candidate.id === transaction.id);
+  assert.equal(pending.status, "PENDING");
+  assert.equal(pending.buyerApproved, false);
+  assert.equal(pending.sellerApproved, true);
+  assert.equal(listBooks().find((book) => book.id === transaction.bookId).status, "NEGOTIATING");
 });

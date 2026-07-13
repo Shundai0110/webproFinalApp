@@ -1,9 +1,10 @@
 import { faculties, seedBooks, seedDemoUsers } from "./data.js";
 
-const STORAGE_VERSION = "v4";
+const STORAGE_VERSION = "v5";
 const BOOKS_KEY = `keio-book-market.books.${STORAGE_VERSION}`;
 const TRANSACTIONS_KEY = `keio-book-market.transactions.${STORAGE_VERSION}`;
 const USERS_KEY = `keio-book-market.users.${STORAGE_VERSION}`;
+const NOTIFICATIONS_KEY = `keio-book-market.notifications.${STORAGE_VERSION}`;
 const SESSION_KEY = `keio-book-market.session.${STORAGE_VERSION}`;
 const SESSION_DURATION_MS = 2 * 60 * 60 * 1000;
 
@@ -51,6 +52,24 @@ function readOptionalJson(key, storage = globalThis.localStorage) {
 function writeJson(key, value) {
   if (!globalThis.localStorage) return;
   globalThis.localStorage.setItem(key, JSON.stringify(value));
+}
+
+function writeJsonBatch(entries) {
+  if (!globalThis.localStorage) return;
+  const snapshots = entries.map(([key]) => [key, globalThis.localStorage.getItem(key)]);
+
+  try {
+    entries.forEach(([key, value]) => {
+      globalThis.localStorage.setItem(key, JSON.stringify(value));
+    });
+  } catch (error) {
+    // localStorage はDBトランザクションを持たないため、失敗時は更新前の値へ戻す。
+    snapshots.forEach(([key, value]) => {
+      if (value === null) globalThis.localStorage.removeItem(key);
+      else globalThis.localStorage.setItem(key, value);
+    });
+    throw error;
+  }
 }
 
 function writeSession(value) {
@@ -253,6 +272,15 @@ export function listTransactions() {
   );
 }
 
+export function listNotifications() {
+  const session = getSession();
+  if (!session.authenticated) return [];
+
+  return readJson(NOTIFICATIONS_KEY, []).filter(
+    (notification) => notification.userId === session.userId,
+  );
+}
+
 export function createListing(input) {
   const session = requireSession();
   const books = readJson(BOOKS_KEY, seedBooks);
@@ -309,6 +337,9 @@ export function requestPurchase(bookId) {
   if (target.sellerId === session.userId) {
     throw new Error("自分が出品した教科書は購入できません");
   }
+  if (!Number.isInteger(session.pointBalance) || session.pointBalance < target.price) {
+    throw new Error("仮想ポイント残高が不足しています");
+  }
 
   target.status = "NEGOTIATING";
   const transactions = readJson(TRANSACTIONS_KEY, []);
@@ -327,15 +358,127 @@ export function requestPurchase(bookId) {
     createdAt: new Date().toISOString(),
   };
 
-  writeJson(BOOKS_KEY, books);
   transactions.unshift(transaction);
-  writeJson(TRANSACTIONS_KEY, transactions);
+  // UIを経由しない呼び出しでも、交渉中への変更と相談作成を片方だけ残さない。
+  writeJsonBatch([
+    [BOOKS_KEY, books],
+    [TRANSACTIONS_KEY, transactions],
+  ]);
+  return clone(transaction);
+}
+
+export function approveTransaction(transactionId) {
+  const session = requireSession();
+  const users = readDemoUsers();
+  const books = readJson(BOOKS_KEY, seedBooks);
+  const transactions = readJson(TRANSACTIONS_KEY, []);
+  const notifications = readJson(NOTIFICATIONS_KEY, []);
+  const transaction = transactions.find((candidate) => candidate.id === transactionId);
+
+  if (!transaction) {
+    throw new Error("対象の取引が見つかりません");
+  }
+  if (transaction.status !== "PENDING") {
+    throw new Error("この取引はすでに終了しています");
+  }
+
+  const isBuyer = transaction.buyerId === session.userId;
+  const isSeller = transaction.sellerId === session.userId;
+  if (!isBuyer && !isSeller) {
+    throw new Error("この取引を承諾する権限がありません");
+  }
+
+  const buyer = users.find((user) => user.id === transaction.buyerId);
+  const seller = users.find((user) => user.id === transaction.sellerId);
+  const book = books.find((candidate) => candidate.id === transaction.bookId);
+  if (!buyer || !seller || !book) {
+    throw new Error("取引に必要なデモデータが見つかりません");
+  }
+  if (book.status !== "NEGOTIATING") {
+    throw new Error("対象の教科書は取引中ではありません");
+  }
+  if (!Number.isInteger(transaction.offeredPrice) || transaction.offeredPrice < 0) {
+    throw new Error("仮想ポイント価格が不正です");
+  }
+  if (
+    !Number.isInteger(buyer.pointBalance) ||
+    buyer.pointBalance < 0 ||
+    !Number.isInteger(seller.pointBalance) ||
+    seller.pointBalance < 0
+  ) {
+    throw new Error("仮想ポイント残高が不正です");
+  }
+  if (isBuyer && buyer.pointBalance < transaction.offeredPrice) {
+    throw new Error("仮想ポイント残高が不足しています");
+  }
+
+  const approvalKey = isBuyer ? "buyerApproved" : "sellerApproved";
+  if (transaction[approvalKey]) {
+    throw new Error("このアカウントはすでに承諾しています");
+  }
+
+  transaction[approvalKey] = true;
+  transaction.updatedAt = new Date().toISOString();
+
+  if (!transaction.buyerApproved || !transaction.sellerApproved) {
+    writeJson(TRANSACTIONS_KEY, transactions);
+    return clone(transaction);
+  }
+
+  if (buyer.pointBalance < transaction.offeredPrice) {
+    throw new Error("仮想ポイント残高が不足しています");
+  }
+
+  // 双方承諾が揃った時だけ、換金不能なデモポイントと取引状態を同時に確定する。
+  buyer.pointBalance -= transaction.offeredPrice;
+  seller.pointBalance += transaction.offeredPrice;
+  transaction.status = "COMPLETED";
+  transaction.completedAt = new Date().toISOString();
+  transaction.pointTransfer = {
+    amount: transaction.offeredPrice,
+    unit: "DEMO_POINT",
+  };
+  book.status = "SOLD";
+
+  const notificationBase = {
+    transactionId: transaction.id,
+    bookId: book.id,
+    createdAt: transaction.completedAt,
+    read: false,
+  };
+  notifications.unshift(
+    {
+      ...notificationBase,
+      id: createId("notification"),
+      userId: buyer.id,
+      message: `${book.title} の取引が完了し、${transaction.offeredPrice.toLocaleString(
+        "ja-JP",
+      )} pt を支払いました`,
+    },
+    {
+      ...notificationBase,
+      id: createId("notification"),
+      userId: seller.id,
+      message: `${book.title} の取引が完了し、${transaction.offeredPrice.toLocaleString(
+        "ja-JP",
+      )} pt を受け取りました`,
+    },
+  );
+
+  // backend 実装時は、この一括更新を必ずDBトランザクションへ置き換える。
+  writeJsonBatch([
+    [USERS_KEY, users],
+    [BOOKS_KEY, books],
+    [TRANSACTIONS_KEY, transactions],
+    [NOTIFICATIONS_KEY, notifications],
+  ]);
+
   return clone(transaction);
 }
 
 export function resetDemoData() {
   if (!globalThis.localStorage) return;
-  [BOOKS_KEY, TRANSACTIONS_KEY, USERS_KEY].forEach((key) => {
+  [BOOKS_KEY, TRANSACTIONS_KEY, USERS_KEY, NOTIFICATIONS_KEY].forEach((key) => {
     globalThis.localStorage.removeItem(key);
   });
   getSessionStore()?.removeItem(SESSION_KEY);

@@ -1,16 +1,18 @@
 import {
+  approveTransaction,
   createListing,
   endDemoSession,
   getSession,
   listBooks,
   listDemoUsers,
+  listNotifications,
   listTransactions,
   requestPurchase,
   resetDemoData,
   startDemoSession,
   updateProfile,
 } from "./apiClient.js";
-import { materialTypeLabels, statusLabels } from "./data.js";
+import { materialTypeLabels, statusLabels, transactionStatusLabels } from "./data.js";
 
 const state = {
   filters: {
@@ -43,6 +45,8 @@ const refs = {
   listingAuthMessage: document.querySelector("#listing-auth-message"),
   transactionCount: document.querySelector("#transaction-count"),
   transactionList: document.querySelector("#transaction-list"),
+  notificationCount: document.querySelector("#notification-count"),
+  notificationList: document.querySelector("#notification-list"),
   resetDemo: document.querySelector("#reset-demo"),
   toast: document.querySelector("#toast"),
 };
@@ -172,19 +176,115 @@ function renderTransactions(session) {
     const item = document.createElement("li");
     const title = document.createElement("strong");
     const meta = document.createElement("div");
+    const approvals = document.createElement("div");
     const partner =
       transaction.buyerId === session.userId
         ? `出品者 ${transaction.sellerName}`
         : `購入者 ${transaction.buyerName}`;
 
     title.textContent = transaction.bookTitle;
-    meta.textContent = `${partner} / ${statusLabels[transaction.status] || "承諾待ち"} / ${formatPrice(
+    meta.textContent = `${partner} / ${transactionStatusLabels[transaction.status]} / ${formatPrice(
       transaction.offeredPrice,
     )}`;
+    approvals.className = "transaction-approvals";
+    approvals.textContent = `購入者 ${transaction.buyerApproved ? "承諾済み" : "未承諾"} / 出品者 ${
+      transaction.sellerApproved ? "承諾済み" : "未承諾"
+    }`;
 
-    item.append(title, meta);
+    item.append(title, meta, approvals);
+
+    if (transaction.status === "PENDING") {
+      const action = document.createElement("button");
+      const isBuyer = transaction.buyerId === session.userId;
+      const alreadyApproved = isBuyer
+        ? transaction.buyerApproved
+        : transaction.sellerApproved;
+      action.className = "transaction-action";
+      action.type = "button";
+      action.disabled = alreadyApproved;
+      action.textContent = alreadyApproved
+        ? "承諾済み"
+        : isBuyer
+          ? "購入・支払いを承諾"
+          : "販売を承諾";
+      action.addEventListener("click", () => {
+        try {
+          const updated = approveTransaction(transaction.id);
+          showToast(
+            updated.status === "COMPLETED"
+              ? "双方が承諾し、仮想ポイント取引が完了しました"
+              : "承諾しました。相手の承諾を待っています",
+          );
+          render();
+        } catch (error) {
+          showToast(error.message);
+        }
+      });
+      item.append(action);
+    } else if (transaction.status === "COMPLETED") {
+      item.classList.add("is-completed");
+    }
+
     refs.transactionList.append(item);
   });
+}
+
+function renderNotifications(session) {
+  const notifications = listNotifications();
+  refs.notificationCount.textContent = String(notifications.length);
+  refs.notificationList.replaceChildren();
+
+  if (!session.authenticated || notifications.length === 0) {
+    const item = document.createElement("li");
+    item.textContent = session.authenticated ? "通知はありません" : "利用開始後に通知を表示します";
+    refs.notificationList.append(item);
+    return;
+  }
+
+  notifications.slice(0, 4).forEach((notification) => {
+    const item = document.createElement("li");
+    item.textContent = notification.message;
+    refs.notificationList.append(item);
+  });
+}
+
+function createPaymentPreview(book, session, isOwnListing) {
+  const panel = document.createElement("section");
+  const heading = document.createElement("div");
+  const title = document.createElement("h4");
+  const badge = document.createElement("span");
+  const summary = document.createElement("dl");
+  const notice = document.createElement("p");
+
+  panel.className = "payment-preview";
+  heading.className = "payment-heading";
+  title.textContent = "仮想ポイント支払い";
+  badge.className = "demo-payment-badge";
+  badge.textContent = "DEMO";
+  heading.append(title, badge);
+
+  const balanceAfter = session.pointBalance - book.price;
+  const rows = session.authenticated && !isOwnListing
+    ? [
+        ["現在の残高", formatPrice(session.pointBalance)],
+        ["取引額", formatPrice(book.price)],
+        ["成立後の残高", balanceAfter >= 0 ? formatPrice(balanceAfter) : "ポイント不足"],
+      ]
+    : [["取引額", formatPrice(book.price)]];
+  rows.forEach(([term, value]) => {
+    const row = document.createElement("div");
+    const dt = document.createElement("dt");
+    const dd = document.createElement("dd");
+    dt.textContent = term;
+    dd.textContent = value;
+    row.append(dt, dd);
+    summary.append(row);
+  });
+
+  notice.className = "payment-notice";
+  notice.textContent = "換金不可・現金価値なし。双方承諾時にデモポイントだけを移動します。";
+  panel.append(heading, summary, notice);
+  return panel;
 }
 
 function selectBook(bookId) {
@@ -304,7 +404,10 @@ function renderDetail(book, session) {
   description.textContent = book.description;
 
   const isOwnListing = session.authenticated && book.sellerId === session.userId;
-  const canPurchase = session.authenticated && book.status === "AVAILABLE" && !isOwnListing;
+  const hasEnoughPoints = session.pointBalance >= book.price;
+  const canPurchase =
+    session.authenticated && book.status === "AVAILABLE" && !isOwnListing && hasEnoughPoints;
+  const paymentPreview = createPaymentPreview(book, session, isOwnListing);
   purchaseButton.className = "primary-button";
   purchaseButton.type = "button";
   purchaseButton.disabled = !canPurchase;
@@ -312,6 +415,8 @@ function renderDetail(book, session) {
     purchaseButton.textContent = "アカウント選択後に購入";
   } else if (isOwnListing) {
     purchaseButton.textContent = "自分の出品は購入不可";
+  } else if (!hasEnoughPoints) {
+    purchaseButton.textContent = "仮想ポイント不足";
   } else {
     purchaseButton.textContent = book.status === "AVAILABLE" ? "購入相談を開始" : "購入相談不可";
   }
@@ -327,7 +432,7 @@ function renderDetail(book, session) {
     }
   });
 
-  body.append(titleRow, detailList, description, purchaseButton);
+  body.append(titleRow, detailList, description, paymentPreview, purchaseButton);
   refs.bookDetail.append(cover, body);
 }
 
@@ -346,6 +451,7 @@ function render() {
   renderBooks(books, session);
   renderDetail(activeBook, session);
   renderTransactions(session);
+  renderNotifications(session);
 }
 
 function bindEvents() {
