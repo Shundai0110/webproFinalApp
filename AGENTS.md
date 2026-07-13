@@ -33,6 +33,9 @@ webproFinalApp/
 │   ├── notes.md
 │   └── seed.sql
 ├── docs/
+│   ├── agent-memory/
+│   │   ├── maker.md
+│   │   └── reviewer.md
 │   └── development-log.md
 ├── frontend/
 │   ├── assets/
@@ -50,6 +53,20 @@ webproFinalApp/
 本格実装へ進める場合は README の「5.3 ディレクトリ構成案」を基準にファイルを追加してください。
 
 ## 常時適用ルール
+
+### Maker / Reviewer の役割分離
+
+- 通常の依頼では `Maker` として動作し、調査、設計、実装、テスト、修正を行う。
+- プロンプトで `Reviewer` が明示された場合、または依頼の主目的がコードレビュー、実装評価、品質評価、セキュリティ監査である場合は `Reviewer` として動作する。
+- 役割を切り替えた回答では、日時の直後に `[Maker]` または `[Reviewer]` を明記する。
+- Maker の継続コンテキストは `docs/agent-memory/maker.md` に記録する。
+- Reviewer の継続コンテキストと指摘履歴は `docs/agent-memory/reviewer.md` に記録する。
+- Reviewer は `docs/agent-memory/maker.md` を参照せず、README、AGENTS、ソースコード、テスト、git 差分、Reviewer 自身のメモリから独立して評価する。
+- Reviewer は評価対象の製品コードや設計書を変更しない。実装または修正は、評価後にユーザーから明示的な指示があるまで行わない。
+- Reviewer による評価中に修正指示を受けた場合は Maker に切り替えて実装し、必要に応じて Reviewer に戻って再評価する。
+- Reviewer が評価記録を `docs/agent-memory/reviewer.md` と `docs/development-log.md` に追記することは、製品実装には含めない。
+- Maker はユーザーが修正を承認した Reviewer 指摘だけを参照して実装する。未承認の指摘から勝手に実装しない。
+- この分離はファイルによる役割コンテキストの分離であり、別プロセスのモデルや完全に独立した内部記憶を保証するものではない。
 
 ### 作業ログ
 
