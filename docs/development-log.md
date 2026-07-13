@@ -204,3 +204,52 @@
 ### 次にやること
 - 通常依頼は Maker、評価依頼または Reviewer 明示時は Reviewer として運用する。
 - Reviewer の初回評価時に指摘と残存リスクを `docs/agent-memory/reviewer.md` に記録する。
+
+## 2026-07-13 19:23
+## 未コミット, docs: README 要件に対する現状実装を評価
+### 依頼内容
+- Reviewer として README を基準に、現在できることとできていないことを確認・評価する。
+- 明示的な実装指示がないため、製品コードは変更しない。
+
+### 実施内容
+- 変更したファイル: `docs/agent-memory/reviewer.md`, `docs/development-log.md`
+- README の MVP、機能、画面、API、DB、セキュリティ、テスト要件を frontend、backend、database の実装と比較した。
+- 現在利用できるローカル SPA 機能と、認証・取引成立・仮想ポイント・永続 DB などの未実装範囲を整理した。
+- 自己購入が可能な問題、未認証操作、テスト不足などを重要度付きで Reviewer Memory に記録した。
+- 評価対象の製品コードと設計書は変更していない。
+
+### 確認内容
+- 実行したコマンド: `rg`, `sed`, `nl`, `git status --short`, `git log`, `npm test`, `node --input-type=module -e <frontend動作検証>`, `curl -sS -I http://127.0.0.1:4173`
+- テスト結果: frontend のテストファイル（定義3件）と backend のテストファイル（定義2件）が成功。frontend HTTP `200 OK`。自己購入リクエストが作成できる問題を関数レベルで再現した。
+- 未確認事項: ブラウザ手動操作、レスポンシブ表示、backend ビルド・起動、health API、MySQL / Prisma 接続、外部デプロイ。
+
+### 次にやること
+- ユーザーが修正対象を承認するまで、Reviewer は実装を行わない。
+- 優先候補は自己購入禁止、デモ認証・認可、双方承諾と仮想ポイント、振る舞いテストの追加。
+
+## 2026-07-14 02:12
+## 未コミット, feat: 複数デモユーザーと自己購入防止を実装
+### 依頼内容
+- Reviewer が指摘した自己購入可能な問題を修正する。
+- 複数のデモユーザーを切り替えて利用できるようにする。
+- デモアカウント選択、仮想セッション、プロフィール編集を実装する。
+- 実装意図が分かるよう、必要な箇所へコメントを追加する。
+
+### 実施内容
+- 変更したファイル: `AGENTS.md`, `README.md`, `docs/agent-memory/maker.md`, `docs/development-log.md`, `frontend/index.html`, `frontend/styles.css`, `frontend/package.json`, `frontend/src/data.js`, `frontend/src/apiClient.js`, `frontend/src/app.js`, `frontend/tests/smoke.test.mjs`, `frontend/tests/apiClient.test.mjs`
+- 5つの架空デモアカウント、アカウント切替、2時間有効なタブ単位の仮想セッションを追加した。
+- ニックネーム、学部、学科・専攻、学年のプロフィール編集を追加した。
+- 出品者・購入者を安定したデモユーザー ID で識別し、自己購入を API 境界と UI の両方で拒否した。
+- 未認証時の出品・購入を拒否し、取引一覧を購入者・出品者だけに表示するようにした。
+- デモデータは `localStorage`、仮想セッションは `sessionStorage` に分離し、別タブで異なるユーザーを利用可能にした。
+- 金額表示を `円` から換金不能な仮想ポイント `pt` に変更した。
+- 仮想セッションと ID ベース認可の意図をコードコメントに記載し、README と AGENTS の現状説明を更新した。
+
+### 確認内容
+- 実行したコマンド: `node --check frontend/src/data.js`, `node --check frontend/src/apiClient.js`, `node --check frontend/src/app.js`, `npm --prefix frontend test`, `npm test`, `rg`, `git diff --check`, `npm run dev`, `curl -sS http://127.0.0.1:4173`
+- テスト結果: frontend の振る舞いテスト・smoke test と backend 構造テストがすべて成功。自己購入拒否、別ユーザー購入、当事者限定取引表示、プロフィール更新後の所有権維持、タブ別セッション共有を確認。配信 HTML にアカウント選択・プロフィール編集 UI が含まれることを確認。
+- 未確認事項: 実ブラウザでの一連の手動操作と表示確認、別ブラウザ・別端末間の共有、backend / MySQL 永続化。
+
+### 次にやること
+- Reviewer に自己購入・デモセッション実装の再評価を依頼する。
+- 双方承諾、取引成立、仮想ポイント移動は別タスクとして実装する。

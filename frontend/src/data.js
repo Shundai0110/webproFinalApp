@@ -10,6 +10,57 @@ export const materialTypeLabels = {
   REFERENCE: "参考書",
 };
 
+export const faculties = ["文学部", "経済学部", "法学部", "商学部", "理工学部"];
+
+// すべて架空のデモアカウントで、実在する連絡先や認証情報は持たせない。
+export const seedDemoUsers = [
+  {
+    id: "demo-user-suzuki",
+    nickname: "A. Suzuki",
+    faculty: "経済学部",
+    department: "経済学科",
+    year: 1,
+    pointBalance: 5000,
+    avatar: "A",
+  },
+  {
+    id: "demo-user-tanaka",
+    nickname: "S. Tanaka",
+    faculty: "経済学部",
+    department: "経済学科",
+    year: 2,
+    pointBalance: 3200,
+    avatar: "T",
+  },
+  {
+    id: "demo-user-sato",
+    nickname: "M. Sato",
+    faculty: "法学部",
+    department: "法律学科",
+    year: 2,
+    pointBalance: 4100,
+    avatar: "S",
+  },
+  {
+    id: "demo-user-kato",
+    nickname: "R. Kato",
+    faculty: "理工学部",
+    department: "学門 A",
+    year: 1,
+    pointBalance: 2800,
+    avatar: "K",
+  },
+  {
+    id: "demo-user-ito",
+    nickname: "A. Ito",
+    faculty: "商学部",
+    department: "商学科",
+    year: 2,
+    pointBalance: 3600,
+    avatar: "I",
+  },
+];
+
 export const seedBooks = [
   {
     id: "book-economics-2025",
@@ -23,6 +74,7 @@ export const seedBooks = [
     price: 1200,
     condition: "書き込み少なめ",
     status: "AVAILABLE",
+    sellerId: "demo-user-tanaka",
     sellerName: "S. Tanaka",
     imageUrl: "assets/book-economics.svg",
     description: "日吉キャンパスの経済学 I で使用。表紙に軽い擦れがあります。",
@@ -39,6 +91,7 @@ export const seedBooks = [
     price: 1800,
     condition: "重要箇所にマーカーあり",
     status: "AVAILABLE",
+    sellerId: "demo-user-sato",
     sellerName: "M. Sato",
     imageUrl: "assets/book-law.svg",
     description: "授業で扱った章に付箋跡があります。本文の破れはありません。",
@@ -55,6 +108,7 @@ export const seedBooks = [
     price: 900,
     condition: "良好",
     status: "NEGOTIATING",
+    sellerId: "demo-user-kato",
     sellerName: "R. Kato",
     imageUrl: "assets/book-math.svg",
     description: "演習問題の解説が多い参考書。購入相談中のため追加リクエストは停止中です。",
@@ -71,17 +125,9 @@ export const seedBooks = [
     price: 700,
     condition: "使用感あり",
     status: "SOLD",
+    sellerId: "demo-user-ito",
     sellerName: "A. Ito",
     imageUrl: "assets/book-business.svg",
     description: "過去年度版。取引成立済みのサンプルとして表示しています。",
   },
 ];
-
-export const demoSession = {
-  authenticated: false,
-  name: "Guest Student",
-  faculty: "経済学部",
-  department: "経済学科",
-  year: 1,
-  pointBalance: 0,
-};

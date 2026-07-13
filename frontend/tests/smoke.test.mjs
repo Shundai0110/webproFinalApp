@@ -11,6 +11,8 @@ test("HTML loads the application entrypoint", async () => {
   assert.match(html, /src\/app\.js/);
   assert.match(html, /id="book-list"/);
   assert.match(html, /id="listing-form"/);
+  assert.match(html, /id="demo-user-select"/);
+  assert.match(html, /id="profile-form"/);
 });
 
 test("seed data contains marketplace states", async () => {
@@ -28,4 +30,6 @@ test("api client exposes future backend seams", async () => {
   assert.match(apiClient, /export function listBooks/);
   assert.match(apiClient, /export function createListing/);
   assert.match(apiClient, /export function requestPurchase/);
+  assert.match(apiClient, /export function startDemoSession/);
+  assert.match(apiClient, /export function updateProfile/);
 });
