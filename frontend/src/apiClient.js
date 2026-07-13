@@ -1,6 +1,6 @@
-import { faculties, seedBooks, seedDemoUsers } from "./data.js";
+import { demoRoleLabels, demoRoles, faculties, seedBooks, seedDemoUsers } from "./data.js";
 
-const STORAGE_VERSION = "v2";
+const STORAGE_VERSION = "v3";
 const BOOKS_KEY = `keio-book-market.books.${STORAGE_VERSION}`;
 const TRANSACTIONS_KEY = `keio-book-market.transactions.${STORAGE_VERSION}`;
 const USERS_KEY = `keio-book-market.users.${STORAGE_VERSION}`;
@@ -75,6 +75,7 @@ function anonymousSession() {
     year: null,
     pointBalance: 0,
     avatar: "?",
+    roles: [],
     expiresAt: null,
   };
 }
@@ -108,6 +109,7 @@ function calculateRelatedScore(book, query, session) {
 }
 
 function requireSession() {
+  // 画面の disabled 状態は改変できるため、更新処理の入口で毎回セッションを検証する。
   const session = getSession();
   if (!session.authenticated) {
     throw new Error("デモアカウントを選択して利用を開始してください");
@@ -115,8 +117,27 @@ function requireSession() {
   return session;
 }
 
+function requireRole(session, role) {
+  // 認証済みでも全操作を許可せず、操作ごとの最小権限を確認する。
+  if (!session.roles.includes(role)) {
+    throw new Error(`${demoRoleLabels[role]}ロールにはこの操作が許可されていません`);
+  }
+}
+
+function readDemoUsers() {
+  const storedProfiles = readJson(USERS_KEY, seedDemoUsers);
+
+  // 編集可能なプロフィールに保存された roles は信用せず、固定のデモ定義から復元する。
+  return storedProfiles
+    .map((profile) => {
+      const account = seedDemoUsers.find((candidate) => candidate.id === profile.id);
+      return account ? { ...profile, roles: clone(account.roles) } : null;
+    })
+    .filter(Boolean);
+}
+
 export function listDemoUsers() {
-  return clone(readJson(USERS_KEY, seedDemoUsers));
+  return clone(readDemoUsers());
 }
 
 export function getSession() {
@@ -125,9 +146,7 @@ export function getSession() {
   if (!storedSession) return anonymousSession();
 
   const expiresAt = Date.parse(storedSession.expiresAt);
-  const user = readJson(USERS_KEY, seedDemoUsers).find(
-    (candidate) => candidate.id === storedSession.userId,
-  );
+  const user = readDemoUsers().find((candidate) => candidate.id === storedSession.userId);
 
   if (!user || !Number.isFinite(expiresAt) || expiresAt <= Date.now()) {
     sessionStore?.removeItem(SESSION_KEY);
@@ -144,12 +163,13 @@ export function getSession() {
     year: user.year,
     pointBalance: user.pointBalance,
     avatar: user.avatar,
+    roles: clone(user.roles),
     expiresAt: storedSession.expiresAt,
   };
 }
 
 export function startDemoSession(userId) {
-  const user = readJson(USERS_KEY, seedDemoUsers).find((candidate) => candidate.id === userId);
+  const user = readDemoUsers().find((candidate) => candidate.id === userId);
   if (!user) {
     throw new Error("選択したデモアカウントが見つかりません");
   }
@@ -191,7 +211,7 @@ export function updateProfile(input) {
     throw new Error("学年を正しく選択してください");
   }
 
-  const users = readJson(USERS_KEY, seedDemoUsers);
+  const users = readDemoUsers();
   const user = users.find((candidate) => candidate.id === session.userId);
   user.nickname = nickname;
   user.faculty = faculty;
@@ -244,6 +264,7 @@ export function listTransactions() {
 
 export function createListing(input) {
   const session = requireSession();
+  requireRole(session, demoRoles.SELLER);
   const books = readJson(BOOKS_KEY, seedBooks);
   const title = String(input.title || "").trim();
   const course = String(input.course || "").trim();
@@ -298,6 +319,7 @@ export function requestPurchase(bookId) {
   if (target.sellerId === session.userId) {
     throw new Error("自分が出品した教科書は購入できません");
   }
+  requireRole(session, demoRoles.BUYER);
 
   target.status = "NEGOTIATING";
   const transactions = readJson(TRANSACTIONS_KEY, []);

@@ -10,7 +10,7 @@ import {
   startDemoSession,
   updateProfile,
 } from "./apiClient.js";
-import { materialTypeLabels, statusLabels } from "./data.js";
+import { demoRoleLabels, demoRoles, materialTypeLabels, statusLabels } from "./data.js";
 
 const state = {
   filters: {
@@ -84,8 +84,9 @@ function populateDemoUserOptions(session) {
 
   refs.demoUserSelect.replaceChildren();
   users.forEach((user) => {
+    const roles = user.roles.map((role) => demoRoleLabels[role]).join("・");
     refs.demoUserSelect.append(
-      new Option(`${user.nickname} / ${user.faculty} ${user.year}年`, user.id),
+      new Option(`${user.nickname} / ${roles} / ${user.faculty} ${user.year}年`, user.id),
     );
   });
   refs.demoUserSelect.value = users.some((user) => user.id === selectedId)
@@ -100,7 +101,9 @@ function updateSession() {
   refs.sessionAvatar.textContent = session.avatar;
   refs.sessionName.textContent = session.name;
   refs.sessionMeta.textContent = session.authenticated
-    ? `${session.faculty} ${session.department || "学科未設定"} ${session.year}年`
+    ? `${session.roles.map((role) => demoRoleLabels[role]).join("・")} / ${session.faculty} ${
+        session.department || "学科未設定"
+      } ${session.year}年`
     : "デモアカウントを選択";
   refs.sessionPoints.textContent = `${session.pointBalance.toLocaleString("ja-JP")} pt`;
   refs.sessionState.textContent = session.authenticated ? "接続中" : "未接続";
@@ -123,10 +126,14 @@ function updateSession() {
     control.disabled = !session.authenticated;
   });
 
-  refs.listingFields.disabled = !session.authenticated;
-  refs.listingAuthMessage.textContent = session.authenticated
-    ? `${session.name} として出品`
-    : "デモアカウントが必要です";
+  const canSell = session.authenticated && session.roles.includes(demoRoles.SELLER);
+  // UIでも権限を示すが、実際の許可判定は apiClient の更新関数で再確認する。
+  refs.listingFields.disabled = !canSell;
+  refs.listingAuthMessage.textContent = !session.authenticated
+    ? "デモアカウントが必要です"
+    : canSell
+      ? `${session.name} として出品`
+      : "出品者ロールが必要です";
 
   return session;
 }
@@ -293,7 +300,8 @@ function renderDetail(book, session) {
   description.textContent = book.description;
 
   const isOwnListing = session.authenticated && book.sellerId === session.userId;
-  const canPurchase = session.authenticated && book.status === "AVAILABLE" && !isOwnListing;
+  const hasBuyerRole = session.authenticated && session.roles.includes(demoRoles.BUYER);
+  const canPurchase = hasBuyerRole && book.status === "AVAILABLE" && !isOwnListing;
   purchaseButton.className = "primary-button";
   purchaseButton.type = "button";
   purchaseButton.disabled = !canPurchase;
@@ -301,6 +309,8 @@ function renderDetail(book, session) {
     purchaseButton.textContent = "アカウント選択後に購入";
   } else if (isOwnListing) {
     purchaseButton.textContent = "自分の出品は購入不可";
+  } else if (!hasBuyerRole) {
+    purchaseButton.textContent = "購入者ロールが必要";
   } else {
     purchaseButton.textContent = book.status === "AVAILABLE" ? "購入相談を開始" : "購入相談不可";
   }

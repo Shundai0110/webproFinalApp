@@ -253,3 +253,26 @@
 ### 次にやること
 - Reviewer に自己購入・デモセッション実装の再評価を依頼する。
 - 双方承諾、取引成立、仮想ポイント移動は別タスクとして実装する。
+
+## 2026-07-14 02:23
+## 未コミット, fix: 未認証操作と権限不足操作を拒否
+### 依頼内容
+- 未認証状態でも出品・購入できる問題を解決する。
+- 認証、認可、ロール制御の実装意図が分かるコメントを追加する。
+
+### 実施内容
+- 変更したファイル: `README.md`, `AGENTS.md`, `docs/agent-memory/maker.md`, `docs/development-log.md`, `frontend/src/data.js`, `frontend/src/apiClient.js`, `frontend/src/app.js`, `frontend/tests/apiClient.test.mjs`
+- デモアカウントに `BUYER` / `SELLER` の固定ロールを追加した。
+- 出品を `SELLER`、購入相談を `BUYER` に限定し、未認証状態と権限不足を API 境界で拒否した。
+- UI でもロールに応じて出品フォームと購入ボタンを無効化し、必要な権限を表示した。
+- 編集可能なプロフィール保存値を権限情報として信用せず、固定のデモ定義からロールを復元することで権限昇格を防止した。
+- UI 制御だけでは認可にならないこと、更新処理でセッション・最小権限を再検証することをコードコメントに記載した。
+
+### 確認内容
+- 実行したコマンド: `npm --prefix frontend test`, `npm test`, `node --check frontend/src/apiClient.js`, `node --check frontend/src/app.js`, `git diff --check`, `rg`
+- テスト結果: frontend の振る舞いテスト・smoke test と backend 構造テストがすべて成功。未認証拒否、BUYER の出品拒否、SELLER の購入拒否、各ロールの許可操作、プロフィール保存値からの権限昇格拒否を確認した。
+- 未確認事項: backend 認証・認可、サーバー共有セッション、実ブラウザでの手動操作。
+
+### 次にやること
+- Reviewer に認証・認可・ロール制御の再評価を依頼する。
+- backend 実装時に同じ認可規則をサーバー側へ移し、frontend の判定だけに依存しない構成にする。
