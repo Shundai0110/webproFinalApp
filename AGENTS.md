@@ -43,7 +43,8 @@ webproFinalApp/
 │   ├── server.mjs
 │   └── styles.css
 ├── AGENTS.md
-├── README.md
+├── package.json
+└── README.md
 ```
 
 本格実装へ進める場合は README の「5.3 ディレクトリ構成案」を基準にファイルを追加してください。
@@ -155,6 +156,14 @@ project-root/
 現時点の frontend は `frontend/` 配下の静的 SPA です。
 frontend は外部依存がないため `npm install` は不要です。
 
+リポジトリ直下から起動する場合:
+
+```bash
+npm run dev
+```
+
+このコマンドは現在の開発対象である frontend を起動します。
+
 ### frontend
 
 ```bash
@@ -227,6 +236,12 @@ npx prisma generate
 ## テスト方法
 
 現時点では Node.js 標準の `node:test` を使った smoke test を用意しています。
+
+リポジトリ直下から frontend と backend のテストをまとめて実行する場合:
+
+```bash
+npm test
+```
 
 ```bash
 cd frontend

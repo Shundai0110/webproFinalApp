@@ -144,3 +144,22 @@
 
 ### 次にやること
 - 今回のログ保存先修正を commit する。
+
+## 2026-07-13 19:02
+## 未コミット, fix: ルートから開発環境を起動可能にする
+### 依頼内容
+- リポジトリ直下で `npm run dev` を実行すると、`package.json` がなく `ENOENT` になる問題を解消する。
+
+### 実施内容
+- 変更したファイル: `package.json`, `README.md`, `AGENTS.md`, `docs/development-log.md`
+- ルート `package.json` を追加し、`npm run dev` で現在の静的 frontend を起動できるようにした。
+- frontend、backend の個別起動スクリプトと、両方のテストを実行するルート `npm test` を追加した。
+- README と AGENTS の起動・テスト手順をルートコマンドに対応させた。
+
+### 確認内容
+- 実行したコマンド: `npm pkg get scripts`, `npm test`, `npm run dev`, `curl -sS -I http://127.0.0.1:4173`, `git diff --check`
+- テスト結果: frontend smoke test 1件、backend 構造確認テスト 1件が成功。ルート `npm run dev` で起動し、HTTP `200 OK` を確認した。
+- 未確認事項: backend 開発サーバーは依存関係未インストールのため起動未確認。
+
+### 次にやること
+- 今回の修正を commit する。
