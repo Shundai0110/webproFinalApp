@@ -368,6 +368,30 @@ a:focus-visible {
   box-shadow: 0 0 0 3px rgba(31, 122, 92, 0.14);
 }
 
+.book-card.is-own-listing {
+  border-color: var(--blue);
+  box-shadow: 0 0 0 3px rgba(40, 95, 159, 0.16);
+}
+
+.book-card.is-own-listing[aria-current="true"] {
+  box-shadow: 0 0 0 4px rgba(40, 95, 159, 0.24);
+}
+
+.own-listing-badge {
+  border-radius: 999px;
+  padding: 4px 8px;
+  background: #e1efff;
+  color: var(--blue);
+  font-size: 0.7rem;
+  font-weight: 800;
+}
+
+.book-badges {
+  display: grid;
+  justify-items: end;
+  gap: 5px;
+}
+
 .book-cover {
   width: 76px;
   height: 112px;

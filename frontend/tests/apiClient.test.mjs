@@ -47,58 +47,21 @@ test("operations require an active demo session", () => {
   assert.throws(() => requestPurchase("book-economics-2025"), /デモアカウントを選択/);
 });
 
-test("authenticated users are limited by their demo roles", () => {
+test("every authenticated user can list and purchase other users listings", () => {
   startDemoSession("demo-user-suzuki");
-  assert.throws(
-    () =>
-      createListing({
-        title: "購入者による出品",
-        course: "権限テスト",
-        faculty: "経済学部",
-        usedYear: 2026,
-        price: 100,
-      }),
-    /出品者ロール/,
-  );
-
-  startDemoSession("demo-user-tanaka");
-  assert.throws(() => requestPurchase("book-civil-law-2024"), /購入者ロール/);
-});
-
-test("profile storage cannot be used to elevate demo roles", () => {
-  const users = listDemoUsers();
-  users.find((user) => user.id === "demo-user-suzuki").roles.push("SELLER");
-  globalThis.localStorage.setItem("keio-book-market.users.v3", JSON.stringify(users));
-
-  const session = startDemoSession("demo-user-suzuki");
-  assert.deepEqual(session.roles, ["BUYER"]);
-  assert.throws(
-    () =>
-      createListing({
-        title: "不正な権限昇格",
-        course: "権限テスト",
-        faculty: "経済学部",
-        usedYear: 2026,
-        price: 100,
-      }),
-    /出品者ロール/,
-  );
-});
-
-test("seller and buyer roles allow their respective operations", () => {
-  startDemoSession("demo-user-tanaka");
   const listing = createListing({
-    title: "出品者ロールの教科書",
-    course: "権限テスト",
+    title: "全ユーザーが出品可能",
+    course: "認可テスト",
     faculty: "経済学部",
     usedYear: 2026,
-    price: 300,
+    price: 100,
   });
-  assert.equal(listing.sellerId, "demo-user-tanaka");
+  assert.equal(listing.sellerId, "demo-user-suzuki");
+  assert.throws(() => requestPurchase(listing.id), /自分が出品した教科書は購入できません/);
 
-  startDemoSession("demo-user-suzuki");
+  startDemoSession("demo-user-tanaka");
   const transaction = requestPurchase(listing.id);
-  assert.equal(transaction.buyerId, "demo-user-suzuki");
+  assert.equal(transaction.buyerId, "demo-user-tanaka");
 });
 
 test("virtual session can switch between multiple demo users", () => {

@@ -10,16 +10,6 @@ export const materialTypeLabels = {
   REFERENCE: "参考書",
 };
 
-export const demoRoles = {
-  BUYER: "BUYER",
-  SELLER: "SELLER",
-};
-
-export const demoRoleLabels = {
-  BUYER: "購入者",
-  SELLER: "出品者",
-};
-
 export const faculties = ["文学部", "経済学部", "法学部", "商学部", "理工学部"];
 
 // すべて架空のデモアカウントで、実在する連絡先や認証情報は持たせない。
@@ -32,7 +22,6 @@ export const seedDemoUsers = [
     year: 1,
     pointBalance: 5000,
     avatar: "A",
-    roles: [demoRoles.BUYER],
   },
   {
     id: "demo-user-tanaka",
@@ -42,7 +31,6 @@ export const seedDemoUsers = [
     year: 2,
     pointBalance: 3200,
     avatar: "T",
-    roles: [demoRoles.SELLER],
   },
   {
     id: "demo-user-sato",
@@ -52,7 +40,6 @@ export const seedDemoUsers = [
     year: 2,
     pointBalance: 4100,
     avatar: "S",
-    roles: [demoRoles.BUYER, demoRoles.SELLER],
   },
   {
     id: "demo-user-kato",
@@ -62,7 +49,6 @@ export const seedDemoUsers = [
     year: 1,
     pointBalance: 2800,
     avatar: "K",
-    roles: [demoRoles.SELLER],
   },
   {
     id: "demo-user-ito",
@@ -72,7 +58,6 @@ export const seedDemoUsers = [
     year: 2,
     pointBalance: 3600,
     avatar: "I",
-    roles: [demoRoles.BUYER, demoRoles.SELLER],
   },
 ];
 

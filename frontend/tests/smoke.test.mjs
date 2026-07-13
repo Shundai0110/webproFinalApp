@@ -33,3 +33,11 @@ test("api client exposes future backend seams", async () => {
   assert.match(apiClient, /export function startDemoSession/);
   assert.match(apiClient, /export function updateProfile/);
 });
+
+test("own listings have a visible marker", async () => {
+  const app = await readFile(join(root, "src", "app.js"), "utf8");
+  const styles = await readFile(join(root, "styles.css"), "utf8");
+  assert.match(app, /is-own-listing/);
+  assert.match(app, /自分の出品/);
+  assert.match(styles, /\.book-card\.is-own-listing/);
+});

@@ -1,6 +1,6 @@
-import { demoRoleLabels, demoRoles, faculties, seedBooks, seedDemoUsers } from "./data.js";
+import { faculties, seedBooks, seedDemoUsers } from "./data.js";
 
-const STORAGE_VERSION = "v3";
+const STORAGE_VERSION = "v4";
 const BOOKS_KEY = `keio-book-market.books.${STORAGE_VERSION}`;
 const TRANSACTIONS_KEY = `keio-book-market.transactions.${STORAGE_VERSION}`;
 const USERS_KEY = `keio-book-market.users.${STORAGE_VERSION}`;
@@ -75,7 +75,6 @@ function anonymousSession() {
     year: null,
     pointBalance: 0,
     avatar: "?",
-    roles: [],
     expiresAt: null,
   };
 }
@@ -117,21 +116,14 @@ function requireSession() {
   return session;
 }
 
-function requireRole(session, role) {
-  // 認証済みでも全操作を許可せず、操作ごとの最小権限を確認する。
-  if (!session.roles.includes(role)) {
-    throw new Error(`${demoRoleLabels[role]}ロールにはこの操作が許可されていません`);
-  }
-}
-
 function readDemoUsers() {
   const storedProfiles = readJson(USERS_KEY, seedDemoUsers);
 
-  // 編集可能なプロフィールに保存された roles は信用せず、固定のデモ定義から復元する。
+  // デモ定義に存在するIDだけを有効にし、プロフィール改変によるアカウント追加を防ぐ。
   return storedProfiles
     .map((profile) => {
       const account = seedDemoUsers.find((candidate) => candidate.id === profile.id);
-      return account ? { ...profile, roles: clone(account.roles) } : null;
+      return account ? profile : null;
     })
     .filter(Boolean);
 }
@@ -163,7 +155,6 @@ export function getSession() {
     year: user.year,
     pointBalance: user.pointBalance,
     avatar: user.avatar,
-    roles: clone(user.roles),
     expiresAt: storedSession.expiresAt,
   };
 }
@@ -264,7 +255,6 @@ export function listTransactions() {
 
 export function createListing(input) {
   const session = requireSession();
-  requireRole(session, demoRoles.SELLER);
   const books = readJson(BOOKS_KEY, seedBooks);
   const title = String(input.title || "").trim();
   const course = String(input.course || "").trim();
@@ -319,7 +309,6 @@ export function requestPurchase(bookId) {
   if (target.sellerId === session.userId) {
     throw new Error("自分が出品した教科書は購入できません");
   }
-  requireRole(session, demoRoles.BUYER);
 
   target.status = "NEGOTIATING";
   const transactions = readJson(TRANSACTIONS_KEY, []);

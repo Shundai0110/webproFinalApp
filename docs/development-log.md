@@ -276,3 +276,27 @@
 ### 次にやること
 - Reviewer に認証・認可・ロール制御の再評価を依頼する。
 - backend 実装時に同じ認可規則をサーバー側へ移し、frontend の判定だけに依存しない構成にする。
+
+## 2026-07-14 02:36
+## 未コミット, fix: 全デモユーザーの出品・購入を許可
+### 依頼内容
+- アカウントごとの `BUYER` / `SELLER` 固定ロールを廃止し、認証済みなら出品と購入の両方を可能にする。
+- 自分の出品を自分で購入することは引き続き禁止する。
+- 教科書一覧で自分の出品を青色等で囲み、所有者本人に分かるようにする。
+
+### 実施内容
+- 変更したファイル: `README.md`, `AGENTS.md`, `docs/agent-memory/maker.md`, `docs/development-log.md`, `frontend/src/data.js`, `frontend/src/apiClient.js`, `frontend/src/app.js`, `frontend/styles.css`, `frontend/tests/apiClient.test.mjs`, `frontend/tests/smoke.test.mjs`
+- デモユーザー、仮想セッション、UI、認可処理から固定ロールを削除した。
+- 認証済みの全アカウントが出品と、他ユーザーが出品した教科書への購入相談を行えるようにした。
+- 未認証拒否と、安定したデモユーザー ID による自己購入拒否を維持した。
+- 自分の出品カードに青枠と「自分の出品」ラベルを追加した。
+- 自分の出品詳細では購入ボタンを無効化し、「自分の出品は購入不可」と表示する既存制御を維持した。
+
+### 確認内容
+- 実行したコマンド: `npm test`, `node --check frontend/src/data.js`, `node --check frontend/src/apiClient.js`, `node --check frontend/src/app.js`, `git diff --check`, `rg`
+- テスト結果: frontend の振る舞いテスト・smoke test と backend 構造テストがすべて成功。各認証済みユーザーの出品、別ユーザーによる購入、自己購入拒否、自分の出品マーカーの存在を確認した。
+- 未確認事項: 実ブラウザでの青枠・ラベルの目視確認、backend 認証・認可、別端末間のデータ共有。
+
+### 次にやること
+- Reviewer に全ユーザー出品・購入と自己購入防止の再評価を依頼する。
+- backend 実装時も固定ロールを前提にせず、セッションと所有者 ID で認可する。
