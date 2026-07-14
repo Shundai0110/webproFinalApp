@@ -21,7 +21,8 @@ test("two browser contexts share a listing without allowing self-purchase", asyn
 
   const sellerCard = sellerPage.locator(".book-card", { hasText: title });
   await expect(sellerCard).toHaveClass(/is-own-listing/);
-  await sellerCard.getByRole("button", { name: "詳細" }).click();
+  await sellerCard.focus();
+  await sellerCard.press("Enter");
   await expect(sellerPage.getByRole("button", { name: "自分の出品は購入不可" })).toBeDisabled();
 
   await buyerPage.reload();
@@ -29,7 +30,7 @@ test("two browser contexts share a listing without allowing self-purchase", asyn
   const buyerCard = buyerPage.locator(".book-card", { hasText: title });
   await expect(buyerCard).toBeVisible();
   await expect(buyerCard).not.toHaveClass(/is-own-listing/);
-  await buyerCard.getByRole("button", { name: "詳細" }).click();
+  await buyerCard.click();
   await buyerPage.getByRole("button", { name: "購入相談を開始" }).click();
   await expect(buyerPage.locator("#toast")).toContainText("購入相談を作成しました");
   await expect(buyerPage.locator("#transaction-list")).toContainText(title);

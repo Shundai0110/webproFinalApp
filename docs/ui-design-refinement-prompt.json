@@ -1,0 +1,41 @@
+{
+  "role": "maker",
+  "scope": "frontend_design_only",
+  "supersedes": [
+    "Use bright yellow as a large-area button or border color",
+    "Render the listing section as a boxed panel"
+  ],
+  "color_refinement": {
+    "reduce_yellow_emphasis": true,
+    "remove_sidebar_yellow_edge": true,
+    "primary_surfaces": ["navy", "white", "cool_light_blue"],
+    "yellow_usage": ["small semantic accents", "negotiating status"]
+  },
+  "search_header": {
+    "move_search_into_header": true,
+    "sticky_to_viewport_top": true,
+    "responsive": true
+  },
+  "own_listing": {
+    "background": "light_blue",
+    "keep_visible_ownership_badge": true
+  },
+  "listing_section": {
+    "boxed_panel": false,
+    "remove_outer_border": true,
+    "remove_outer_shadow": true,
+    "remove_panel_background": true
+  },
+  "constraints": {
+    "change_backend": false,
+    "change_api_contracts": false,
+    "change_business_rules": false
+  },
+  "verification": [
+    "frontend tests",
+    "build",
+    "two-browser end-to-end test",
+    "desktop sticky-header screenshot",
+    "mobile screenshot"
+  ]
+}

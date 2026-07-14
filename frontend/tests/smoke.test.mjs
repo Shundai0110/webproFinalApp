@@ -52,6 +52,24 @@ test("own listings have a visible marker", async () => {
   assert.match(styles, /\.book-card\.is-own-listing/);
 });
 
+test("design theme and whole-card selection are applied", async () => {
+  const html = await readFile(join(root, "index.html"), "utf8");
+  const app = await readFile(join(root, "src", "app.js"), "utf8");
+  const styles = await readFile(join(root, "styles.css"), "utf8");
+  assert.match(styles, /--brand: #001e62/);
+  assert.match(styles, /--action: #fdd000/);
+  assert.match(styles, /\.brand-mark\s*{[\s\S]*background: var\(--action\)/);
+  assert.match(styles, /\.primary-button\s*{[\s\S]*background: var\(--action\)/);
+  assert.match(styles, /\.site-header\s*{[\s\S]*position: sticky/);
+  assert.match(styles, /\.book-card\.is-own-listing\s*{[\s\S]*background: #e6efff/);
+  assert.match(styles, /\.listing-form-section\s*{[\s\S]*border-top: 2px solid var\(--brand\)/);
+  assert.match(html, /<header class="site-header">[\s\S]*id="books" class="toolbar"/);
+  assert.match(styles, /\.transaction-panel \.panel-heading h2[\s\S]*white-space: nowrap/);
+  assert.match(app, /card\.setAttribute\("role", "button"\)/);
+  assert.match(app, /card\.addEventListener\("click", \(\) => selectBook\(book\.id\)\)/);
+  assert.doesNotMatch(app, /action\.textContent = "詳細"/);
+});
+
 test("payment UI is demo points only", async () => {
   const html = await readFile(join(root, "index.html"), "utf8");
   const app = await readFile(join(root, "src", "app.js"), "utf8");
