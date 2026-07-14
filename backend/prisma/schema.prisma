@@ -4,8 +4,120 @@ generator client {
 
 datasource db {
   provider = "mysql"
-  url      = env("DATABASE_URL")
 }
 
-// Domain models are intentionally not defined yet.
-// Add models only when the corresponding feature is implemented.
+model User {
+  id           Int      @id @default(autoincrement())
+  demoUserKey  String   @unique @map("demo_user_key") @db.VarChar(100)
+  nickname     String   @db.VarChar(40)
+  year         Int
+  faculty      String   @db.VarChar(100)
+  department   String   @default("") @db.VarChar(100)
+  iconUrl      String?  @map("icon_url") @db.VarChar(1000)
+  pointBalance Int      @default(5000) @map("point_balance")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  books         Book[]         @relation("SellerBooks")
+  purchases     Transaction[]  @relation("BuyerTransactions")
+  sales         Transaction[]  @relation("SellerTransactions")
+  notifications Notification[]
+
+  @@map("users")
+}
+
+model Book {
+  id             Int          @id @default(autoincrement())
+  title          String       @db.VarChar(255)
+  price          Int
+  description    String?      @db.Text
+  imageUrl       String?      @map("image_url") @db.VarChar(1000)
+  sellerId       Int          @map("seller_id")
+  status         BookStatus   @default(AVAILABLE)
+  usedYear       Int          @map("used_year")
+  usedLesson     String       @map("used_lesson") @db.VarChar(255)
+  usedFaculty    String?      @map("used_faculty") @db.VarChar(100)
+  usedDepartment String?      @map("used_department") @db.VarChar(100)
+  targetYear     Int?         @map("target_year")
+  materialType   MaterialType @default(REQUIRED) @map("material_type")
+  category       String?      @db.VarChar(100)
+  createdAt      DateTime     @default(now()) @map("created_at")
+  updatedAt      DateTime     @updatedAt @map("updated_at")
+
+  seller       User          @relation("SellerBooks", fields: [sellerId], references: [id], onDelete: Restrict)
+  transactions Transaction[]
+
+  @@index([sellerId])
+  @@index([status])
+  @@index([usedYear])
+  @@index([usedLesson])
+  @@index([usedFaculty])
+  @@index([usedDepartment])
+  @@index([targetYear])
+  @@map("books")
+}
+
+model Transaction {
+  id             Int               @id @default(autoincrement())
+  bookId         Int               @map("book_id")
+  buyerId        Int               @map("buyer_id")
+  sellerId       Int               @map("seller_id")
+  offeredPrice   Int               @map("offered_price")
+  sellerApproved Boolean           @default(false) @map("seller_approved")
+  buyerApproved  Boolean           @default(false) @map("buyer_approved")
+  status         TransactionStatus @default(PENDING)
+  message        String?           @db.Text
+  createdAt      DateTime          @default(now()) @map("created_at")
+  updatedAt      DateTime          @updatedAt @map("updated_at")
+  completedAt    DateTime?         @map("completed_at")
+
+  book          Book           @relation(fields: [bookId], references: [id], onDelete: Restrict)
+  buyer         User           @relation("BuyerTransactions", fields: [buyerId], references: [id], onDelete: Restrict)
+  seller        User           @relation("SellerTransactions", fields: [sellerId], references: [id], onDelete: Restrict)
+  notifications Notification[]
+
+  @@index([bookId])
+  @@index([buyerId])
+  @@index([sellerId])
+  @@index([status])
+  @@map("transactions")
+}
+
+model Notification {
+  id            Int              @id @default(autoincrement())
+  userId        Int              @map("user_id")
+  transactionId Int              @map("transaction_id")
+  type          NotificationType @default(TRANSACTION_COMPLETED)
+  message       String           @db.VarChar(500)
+  read          Boolean          @default(false)
+  createdAt     DateTime         @default(now()) @map("created_at")
+
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transaction Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([transactionId])
+  @@map("notifications")
+}
+
+enum BookStatus {
+  AVAILABLE
+  NEGOTIATING
+  SOLD
+  CANCELLED
+}
+
+enum TransactionStatus {
+  PENDING
+  COMPLETED
+  CANCELLED
+}
+
+enum MaterialType {
+  REQUIRED
+  REFERENCE
+}
+
+enum NotificationType {
+  TRANSACTION_COMPLETED
+}

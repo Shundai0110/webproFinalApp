@@ -18,14 +18,25 @@ test("backend base files exist", async () => {
     exists("src/app.ts"),
     exists("src/server.ts"),
     exists("src/routes/healthRoutes.ts"),
+    exists("src/routes/authRoutes.ts"),
+    exists("src/routes/userRoutes.ts"),
+    exists("src/routes/bookRoutes.ts"),
+    exists("src/routes/transactionRoutes.ts"),
+    exists("src/services/authService.ts"),
+    exists("src/services/bookService.ts"),
+    exists("src/services/transactionService.ts"),
     exists("src/middlewares/errorHandler.ts"),
     exists("src/lib/prisma.ts"),
     exists("prisma/schema.prisma"),
   ]);
 });
 
-test("prisma schema has no domain models yet", async () => {
+test("prisma schema defines the API domain models", async () => {
   const schema = await readFile(join(root, "prisma", "schema.prisma"), "utf8");
   assert.match(schema, /datasource db/);
-  assert.doesNotMatch(schema, /^model\s+/m);
+  assert.match(schema, /^model User/m);
+  assert.match(schema, /^model Book/m);
+  assert.match(schema, /^model Transaction/m);
+  assert.match(schema, /^model Notification/m);
+  assert.match(schema, /pointBalance Int\s+@default\(5000\)/);
 });

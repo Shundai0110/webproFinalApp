@@ -653,6 +653,18 @@ flowchart LR
 
 ### 9.4 API詳細
 
+#### API-001: デモアカウント追加・利用開始
+
+`POST /api/auth/register` は、ニックネーム、学部、学科・専攻、学年、任意のデモアイコンURLだけを受け取る。サーバーが変更不能な `demoUserKey` と初期残高5,000ポイントを付与し、2時間有効な署名付きBearerデモセッションを返す。実在メール、電話番号、住所、パスワード、本人確認情報、カード・銀行情報などの未対応フィールドは `400 VALIDATION_ERROR` で拒否する。追加アカウントは合計20件までとする。
+
+認証が必要なAPIは、次のヘッダーを必須とする。トークンは `SESSION_SECRET` のHMAC-SHA256署名で改ざんを検知し、Cookieや外部認証サービスは使用しない。
+
+```text
+Authorization: Bearer <demo-session-token>
+```
+
+`GET /api/users/me` は自分のデモプロフィールと仮想ポイント残高を返し、`PATCH /api/users/me` は登録時と同じ安全なプロフィール項目だけを更新する。
+
 #### API-004: 教科書一覧・検索
 
 | 項目 | 内容 |
@@ -799,6 +811,8 @@ GET /api/books?q=経済学&faculty=経済学部&year=1&usedYear=2025&materialTyp
 8. 仮想ポイント残高を更新する。
 9. 画面内のデモ通知を作成する。
 10. 完了画面用のレスポンスを返す。
+
+現在のbackend実装では、Transaction、Book、購入者・出品者残高、双方の `TRANSACTION_COMPLETED` 通知をPrismaの単一DBトランザクションで更新する。`GET /api/notifications` は認証中ユーザー自身の通知だけを返す。
 
 ---
 
@@ -1597,13 +1611,24 @@ npm run dev
 
 教科書詳細では、認証済みユーザーが1〜240文字の簡易コメントを投稿できる。空文字、文字数超過、未認証投稿は API 境界で拒否し、画面では投稿内容を HTML として解釈せずテキストとして描画する。購入希望者などが投稿した場合は出品者へ、出品者が返信した場合は同じ教科書の既存コメント投稿者と取引購入者へ画面内通知を作成する。実在する連絡先や個人情報はコメントへ入力しない。
 
-追加デモアカウント、プロフィール、教科書、購入相談、コメント、仮想ポイント残高、画面内通知はブラウザの `localStorage` で共有し、仮想セッションはタブ単位の `sessionStorage` に保存する。複数データの成立更新やコメント通知作成には、書き込み失敗時に更新前データへ戻すベストエフォートのロールバックを実装している。ただし `localStorage` は同時実行制御を備えた DB ではないため、別タブ間の完全な原子性は保証しない。別ブラウザ・別端末間の共有、Express API、MySQL 永続化、DB トランザクションによる厳密な成立処理はまだ未実装である。
+現在の静的frontendは、追加デモアカウント、プロフィール、教科書、購入相談、コメント、仮想ポイント残高、画面内通知をブラウザの `localStorage`、仮想セッションをタブ単位の `sessionStorage` に保存しており、Express APIへはまだ接続していない。
+
+backendには、署名付きBearerデモ認証、プロフィール、Books、Transactions、成立通知APIと、User / Book / Transaction / NotificationのPrismaモデル・MySQL migrationを実装済みである。backend側の双方成立処理はDBトランザクションを使う。frontendのAPI接続、backend版コメントAPI、常設MySQL環境、別端末間の画面動作確認はまだ未実装・未確認である。
 
 ```bash
 npm test
 ```
 
 backend の開発サーバーを単独で起動する場合は、先に `backend/` で依存関係をインストールしてから `npm run dev:backend` を実行する。
+
+backendは `DATABASE_URL` が指すMySQLへmigrationを適用してから起動する。
+
+```bash
+cd backend
+npm ci
+npm run prisma:deploy
+npm run dev
+```
 
 ### 18.1 ブランチ運用
 

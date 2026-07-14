@@ -352,3 +352,29 @@
 ### 次にやること
 - Reviewer にコメント認可・通知先・追加アカウント初期残高の再評価を依頼する。
 - backend 実装時にアカウント、コメント、通知の検証とDBトランザクションをサーバー側へ移す。
+
+## 2026-07-14 12:57
+## 未コミット, feat: 認証・Books・Transactions APIを実装
+### 依頼内容
+- README記載の認証、Books、Transactions APIをbackendへ実装する。
+- 実装意図が分かるよう、必要な箇所へコメントを追加する。
+
+### 実施内容
+- 変更したファイル: `.gitignore`, `README.md`, `AGENTS.md`, `backend/README.md`, `backend/package.json`, `backend/package-lock.json`, `backend/prisma.config.ts`, `backend/prisma/schema.prisma`, `backend/prisma/migrations/20260714122700_init/migration.sql`, `backend/src/` 配下のroutes・controllers・services・repositories・middlewares・lib・domain・errors, `backend/tests/`, `database/README.md`, `database/notes.md`, `docs/agent-memory/maker.md`, `docs/development-log.md`
+- 2時間有効のHMAC署名付きBearerデモセッション、デモアカウント追加、プロフィール取得・更新を実装した。追加時は5,000ポイントを固定付与し、実在連絡先、パスワード、本人確認・決済情報の未対応入力を拒否する。
+- Booksの一覧・条件検索・関連度順、詳細、出品、出品者限定更新、論理取消を実装した。利用者が `NEGOTIATING` / `SOLD` を直接指定できないようにした。
+- Transactionsの購入相談、当事者限定取得、双方承諾を実装した。自己購入、Book状態、重複承諾、第三者承諾、残高不足を拒否する。
+- 双方成立時のTransaction `COMPLETED`、Book `SOLD`、購入者減算、出品者加算、双方通知を直列化可能な単一Prismaトランザクションで確定するようにした。
+- User、Book、Transaction、NotificationのPrisma 7モデル、MySQL初期migration、MariaDB driver adapter設定を追加した。
+- CORS Origin制限、JSONサイズ制限、no-store・nosniff・referrer-policy、統一エラー、404、同時更新エラーを追加した。
+- 無料npm公開パッケージだけを使用し、監査対象の推移依存を修正版へ固定した。外部の有料サービスや決済・認証サービスは使用していない。
+
+### 確認内容
+- 実行したコマンド: `npm install`, `npm install @prisma/adapter-mariadb`, `npm run prisma:generate`, `npm run build`, `npm test`, `npm audit --json`, `git diff --check`, `npm run dev`, `curl`, `mysqld --initialize-insecure`, `prisma migrate deploy`
+- テスト結果: リポジトリ直下のfrontendテスト2件とbackendテスト3件がすべて成功し、Prisma Client生成とTypeScriptビルドも成功。npm auditは0 vulnerabilities。4000番のhealthは200、未認証Booksは401。`/tmp` の一時MySQLへmigrationを適用し、2ユーザー登録、出品、購入相談、片側承諾時PENDING、双方承諾時COMPLETED・SOLD・5,000→3,800 / 5,000→6,200ポイント移動、購入者通知をHTTPで確認した。最終的に機能確認用の一時MySQL接続済みAPIを4000番で起動した。
+- 未確認事項: 常設MySQL環境、frontendからExpress APIへの接続、backend版コメントAPI、実ブラウザからのAPI操作、負荷・同時更新試験。
+
+### 次にやること
+- frontendの `apiClient.js` をExpress APIへ接続する。
+- backend版コメントAPIを実装する場合はCommentモデルと関係者通知をDBトランザクションで追加する。
+- Reviewerに認証・認可・取引整合性・入力許可リストを再評価してもらう。

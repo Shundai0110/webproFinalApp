@@ -13,8 +13,8 @@ Reviewer は独立性を保つため、このファイルを参照しません�
 
 - プロジェクトは慶應生向け教科書売買アプリのデモである。
 - frontend は依存関係なしの静的 SPA で、デモアカウント追加・選択、仮想セッション、プロフィール編集、教科書一覧、検索、詳細、出品、コメント、購入相談、双方承諾、仮想ポイント取引、画面内通知の UI を持つ。
-- backend は Express / TypeScript / Prisma のベース構造と `/api/health` だけを持つ。
-- database は migration、seed、設計メモの置き場だけを持ち、モデルや具体機能は未実装である。
+- backend は Express 5 / TypeScript / Prisma 7で、health、署名付きデモ認証、プロフィール、Books、Transactions、成立通知APIを持つ。
+- backend PrismaにはUser、Book、Transaction、NotificationモデルとMySQL初期migrationがある。frontendはまだbackendへ接続せずlocalStorage版を使う。
 - リポジトリ直下の `npm run dev` は frontend を `http://127.0.0.1:4173` で起動する。
 - リポジトリ直下の `npm test` は frontend と backend の標準 Node.js テストを実行する。
 
@@ -23,13 +23,13 @@ Reviewer は独立性を保つため、このファイルを参照しません�
 - 実決済、カード・銀行口座登録、実在個人情報の入力・保存を実装しない。
 - 売買は仮想ポイントで表現し、架空個人情報も実データと同等のセキュリティで扱う。
 - 外部サービスは無料プランだけを使用し、課金やカード登録が必要なら作業を中止してユーザーへ伝える。
-- auth、books、transactions の具体的な backend 機能と Prisma モデルは、ユーザーの実装指示があるまで追加しない。
+- backend APIでも実決済・実在個人情報・外部認証を追加せず、入力許可リストと認可を維持する。
 - 作業結果は `docs/development-log.md` に追記する。
 
 ## 現在の残タスク
 
-- backend の依存関係インストール、ビルド、実サーバー起動は未確認。
-- frontend 版の取引成立と仮想ポイント更新は実装済みだが、backend 認証、永続 DB、DB トランザクションによる取引成立、サーバー側セキュリティ機能は未実装。
+- frontendからbackend APIへの接続は未実装。
+- backend版コメントAPIと常設MySQL環境は未実装。認証・Books・Transactionsの一時MySQL E2E確認は完了済み。
 - ブラウザ上の一連の手動操作は未確認。
 
 ## 2026-07-14 の実装
@@ -51,3 +51,7 @@ Reviewer は独立性を保つため、このファイルを参照しません�
 - ニックネーム、学部、学科・専攻、学年だけでデモアカウントを追加可能にし、コード側で変更不能なデモIDと初期5,000ポイントを付与する。追加アカウントを含めて最大20件とする。
 - 教科書詳細へ1〜240文字の簡易コメントを追加し、未認証・空文字・文字数超過を API 境界で拒否する。投稿内容は `textContent` で描画する。
 - 購入希望者等のコメントは出品者へ、出品者の返信は同じ教科書の既存投稿者と取引購入者へ画面内通知する。取引成立通知には `TRANSACTION_COMPLETED` 種別を付ける。
+- backendへ2時間有効なHMAC署名付きBearerデモセッション、プロフィール、Books CRUD、Transactions作成・取得・承諾、成立通知APIを追加した。
+- User、Book、Transaction、NotificationのPrisma 7モデルとMySQL migrationを追加し、Prisma MariaDB driver adapterで接続する。
+- 双方承諾時のTransaction、Book、購入者・出品者残高、通知を直列化可能な単一DBトランザクションで確定する。
+- 一時MySQLで登録、出品、購入相談、片側承諾、双方成立、ポイント移動、成立通知のE2E確認を完了した。

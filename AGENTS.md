@@ -1,9 +1,9 @@
 # AGENTS.md
 
 このファイルは、このリポジトリで作業するエージェント向けの開発ガイドです。
-現時点のリポジトリ実体は、設計書の `README.md`、依存関係なしで動く静的フロントエンド、backend と database のベース構造です。
+現時点のリポジトリ実体は、設計書の `README.md`、依存関係なしで動く静的フロントエンド、Express / Prisma / MySQL backend です。
 frontend にはデモアカウント追加・選択、期限付き仮想セッション、プロフィール編集、教科書の簡易出品・検索・購入相談、コメント、双方承諾、仮想ポイント取引、画面内通知を実装しています。
-backend の認証、教科書 API、取引 API、Prisma モデル、MySQL マイグレーション、サーバー側の購入確定処理はまだ実装していません。
+backend には署名付きデモ認証、プロフィール、Books、Transactions、成立通知API、Prismaモデル、MySQL migration、DBトランザクションによる購入確定処理を実装しています。frontendからbackendへの接続はまだ未実装です。
 実決済、クレジットカード登録、銀行口座登録、実在個人情報の入力・保存は本プロジェクトでは実装しません。
 メール、電話番号、住所、学生証、本人確認書類などが必要な画面では、架空のデモデータとして保存し、実データと同等のセキュリティで扱います。
 
@@ -139,13 +139,14 @@ project-root/
 
 ### backend
 
-- 現時点ではベース構造のみで、具体的なドメイン API は未実装。
+- 認証・プロフィール・Books・Transactions・成立通知のドメイン API を実装済み。
 - Express API を `backend/src/` に実装する。
 - HTTP 入口は routes、リクエスト処理は controllers、業務ロジックは services、DB アクセスは repositories に分ける。
 - Prisma Client は `backend/src/lib/prisma.ts` に集約する。
 - 画面表示や React コンポーネントをバックエンドに置かない。
 - DB 更新が複数テーブルにまたがる処理は Prisma の transaction で実行する。
-- 具体的な機能を実装するまで、`auth`、`books`、`transactions` のドメインルートは追加しない。
+- 認証が必要なAPIは、2時間有効な署名付きBearerデモセッションを必須とする。
+- Book状態、Transaction、仮想ポイント、成立通知の確定は単一のPrisma DBトランザクションで行う。
 
 想定 API:
 
@@ -160,11 +161,11 @@ project-root/
 - `POST /api/transactions`
 - `GET /api/transactions/:id`
 - `PATCH /api/transactions/:id`
+- `GET /api/notifications`
 
 ### database
 
-- 現時点では DB モデル、migration、seed は未作成。
-- MVP の中心テーブルは将来的に `User`、`Book`、`Transaction` とする。
+- `User`、`Book`、`Transaction`、`Notification` のPrismaモデルと初期migrationを実装済み。
 - Prisma schema は `backend/prisma/schema.prisma` に置く。
 - MySQL を前提にする。
 - `users`、`books`、`transactions` は snake_case 複数形の DB テーブルとして扱う。
@@ -213,13 +214,12 @@ npm run start
 
 ### backend
 
-現時点の backend は依存関係の定義と TypeScript ソースだけを持つベース構造です。
-実行する場合は依存関係のインストールが必要です。
+backendはMySQL接続を必要とします。依存関係を導入し、migrationを適用してから起動します。
 
 ```bash
 cd backend
-npm install
-npx prisma generate
+npm ci
+npm run prisma:deploy
 npm run dev
 ```
 
@@ -256,7 +256,7 @@ npx prisma generate
 
 ## テスト方法
 
-現時点では Node.js 標準の `node:test` を使った smoke test を用意しています。
+Node.js標準の `node:test` とTypeScriptビルドを使ったテストを用意しています。
 
 リポジトリ直下から frontend と backend のテストをまとめて実行する場合:
 
@@ -269,7 +269,7 @@ cd frontend
 npm test
 ```
 
-現時点の backend には、依存関係なしで実行できる構造確認テストがあります。
+backendテストはPrisma Client生成とTypeScriptビルドを行うため、先に `npm ci` が必要です。
 
 ```bash
 cd backend
@@ -294,12 +294,12 @@ npm test
 - 架空個人情報も、実個人情報と同等に認可、暗号化、マスキング、監査ログ、保存期間、削除手段の対象になること。
 
 現在の最小 SPA では、追加デモアカウント、教科書データ、購入相談データ、コメント、仮想ポイント残高、画面内通知を `localStorage`、仮想セッションを `sessionStorage` に保存します。
-`frontend/src/apiClient.js` は将来 Express API に差し替える前提の境界です。
+`frontend/src/apiClient.js` は実装済みExpress APIに差し替える前提の境界ですが、現時点ではまだ接続していません。
 所有権と取引当事者の判定には編集可能なニックネームではなくデモユーザー ID を使い、自分の出品物への購入相談を拒否します。
 デモアカウントに購入者・出品者の固定ロールは付けず、認証済みの全アカウントが出品と他ユーザー出品の購入相談を行えます。未認証操作は `frontend/src/apiClient.js` の更新関数で拒否し、自分の出品は一覧で青枠とラベルを表示します。
 購入相談は `PENDING` で作成し、購入者と出品者の双方承諾時だけ `COMPLETED` にして Book を `SOLD` にします。成立時に移動するのは換金不可・現金価値なしのデモ用仮想ポイントだけで、双方へ画面内通知を作成します。
 片側承諾時は残高を更新せず、第三者承諾、重複承諾、残高不足を API 境界で拒否してください。カード・銀行口座・住所・電話番号などの支払い情報入力欄や外部決済 API は追加しないでください。
-`localStorage` 版は複数キーの書き込み失敗時にベストエフォートでロールバックしますが、同時実行制御を保証しません。backend に移す際は、取引、Book、購入者・出品者残高、通知を必ず単一の DB トランザクションで更新してください。
+`localStorage` 版は複数キーの書き込み失敗時にベストエフォートでロールバックしますが、同時実行制御を保証しません。backend版は、取引、Book、購入者・出品者残高、通知を単一のDBトランザクションで更新します。この保証を維持してください。
 追加アカウントはニックネーム、学部、学科・専攻、学年だけを受け取り、コード側でデモ専用IDと5,000ポイントを付与します。実在メール、電話番号、住所、パスワード、本人確認情報を追加フォームへ含めないでください。
 簡易コメントは教科書へ紐づけ、投稿は認証必須、本文は1〜240文字とします。UIでは `textContent` 相当の安全な描画を使い、外部メールやSMSではなく関係者向けの画面内通知だけを作成してください。
 
