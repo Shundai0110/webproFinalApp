@@ -42,6 +42,43 @@
           <p id="session-expiry" class="side-note">外部認証には接続しません</p>
         </section>
 
+        <details class="account-creator">
+          <summary>デモアカウント追加</summary>
+          <form id="account-form" class="side-form">
+            <label class="side-field">
+              <span>ニックネーム</span>
+              <input name="nickname" maxlength="40" required />
+            </label>
+            <label class="side-field">
+              <span>学部</span>
+              <select name="faculty" required>
+                <option value="文学部">文学部</option>
+                <option value="経済学部" selected>経済学部</option>
+                <option value="法学部">法学部</option>
+                <option value="商学部">商学部</option>
+                <option value="理工学部">理工学部</option>
+              </select>
+            </label>
+            <label class="side-field">
+              <span>学科・専攻</span>
+              <input name="department" maxlength="40" />
+            </label>
+            <label class="side-field">
+              <span>学年</span>
+              <select name="year" required>
+                <option value="1">1年</option>
+                <option value="2">2年</option>
+                <option value="3">3年</option>
+                <option value="4">4年</option>
+                <option value="5">修士1年相当</option>
+                <option value="6">修士2年相当</option>
+              </select>
+            </label>
+            <p class="side-note">初期残高 5,000 pt / 実在の連絡先は保存しません</p>
+            <button class="side-primary-button" type="submit">追加して利用開始</button>
+          </form>
+        </details>
+
         <section class="profile-editor" aria-labelledby="profile-heading">
           <div class="panel-heading">
             <h2 id="profile-heading">プロフィール</h2>

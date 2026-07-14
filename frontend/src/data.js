@@ -17,6 +17,7 @@ export const transactionStatusLabels = {
 };
 
 export const faculties = ["文学部", "経済学部", "法学部", "商学部", "理工学部"];
+export const newDemoAccountInitialPoints = 5000;
 
 // すべて架空のデモアカウントで、実在する連絡先や認証情報は持たせない。
 export const seedDemoUsers = [

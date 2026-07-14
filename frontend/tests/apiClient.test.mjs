@@ -2,11 +2,14 @@ import assert from "node:assert/strict";
 import { beforeEach, test } from "node:test";
 import {
   approveTransaction,
+  createComment,
+  createDemoAccount,
   createListing,
   endDemoSession,
   getSession,
   listDemoUsers,
   listBooks,
+  listComments,
   listNotifications,
   listTransactions,
   requestPurchase,
@@ -89,6 +92,42 @@ test("virtual session can switch between multiple demo users", () => {
   assert.equal(getSession().authenticated, false);
 });
 
+test("a newly created demo account starts with 5000 points and no contact data", () => {
+  const account = createDemoAccount({
+    nickname: "Demo Newcomer",
+    faculty: "文学部",
+    department: "人文社会学科",
+    year: 1,
+  });
+
+  assert.match(account.id, /^demo-user-created-/);
+  assert.equal(account.accountType, "CREATED_DEMO");
+  assert.equal(account.pointBalance, 5000);
+  assert.equal(Object.hasOwn(account, "email"), false);
+  assert.equal(Object.hasOwn(account, "phone"), false);
+  assert.equal(Object.hasOwn(account, "address"), false);
+  assert.equal(listDemoUsers().length, 6);
+
+  const session = startDemoSession(account.id);
+  assert.equal(session.userId, account.id);
+  assert.equal(session.pointBalance, 5000);
+});
+
+test("demo account creation validates profile fields", () => {
+  assert.throws(
+    () => createDemoAccount({ nickname: "", faculty: "経済学部", year: 1 }),
+    /ニックネーム/,
+  );
+  assert.throws(
+    () => createDemoAccount({ nickname: "Demo", faculty: "対象外", year: 1 }),
+    /学部/,
+  );
+  assert.throws(
+    () => createDemoAccount({ nickname: "Demo", faculty: "経済学部", year: 9 }),
+    /学年/,
+  );
+});
+
 test("a seller cannot purchase their own listing", () => {
   startDemoSession("demo-user-tanaka");
   assert.throws(
@@ -167,6 +206,50 @@ test("one approval keeps the transaction pending without moving points", () => {
   assert.deepEqual(listNotifications(), []);
 });
 
+test("comments require a session and validate their body", () => {
+  assert.throws(
+    () => createComment("book-economics-2025", { body: "未認証コメント" }),
+    /デモアカウントを選択/,
+  );
+
+  startDemoSession("demo-user-suzuki");
+  assert.throws(() => createComment("book-economics-2025", { body: "   " }), /1〜240文字/);
+  assert.throws(
+    () => createComment("book-economics-2025", { body: "x".repeat(241) }),
+    /1〜240文字/,
+  );
+  assert.deepEqual(listComments("book-economics-2025"), []);
+});
+
+test("book comments notify the seller and seller replies notify the commenter", () => {
+  startDemoSession("demo-user-suzuki");
+  const comment = createComment("book-economics-2025", {
+    body: "書き込みの範囲を教えてください。<script>ignored</script>",
+  });
+  assert.equal(comment.authorId, "demo-user-suzuki");
+  assert.equal(listComments("book-economics-2025").length, 1);
+  assert.deepEqual(listNotifications(), []);
+
+  startDemoSession("demo-user-kato");
+  createComment("book-civil-law-2024", { body: "別の教科書への質問です。" });
+
+  startDemoSession("demo-user-tanaka");
+  const sellerNotifications = listNotifications();
+  assert.equal(sellerNotifications.length, 1);
+  assert.equal(sellerNotifications[0].type, "COMMENT");
+  assert.equal(sellerNotifications[0].commentId, comment.id);
+  createComment("book-economics-2025", { body: "第3章に少しだけあります。" });
+
+  startDemoSession("demo-user-suzuki");
+  const buyerNotifications = listNotifications();
+  assert.equal(buyerNotifications.length, 1);
+  assert.equal(buyerNotifications[0].type, "COMMENT");
+  assert.equal(listComments("book-economics-2025").length, 2);
+
+  startDemoSession("demo-user-kato");
+  assert.deepEqual(listNotifications(), []);
+});
+
 test("insufficient demo points prevent a purchase request at the API boundary", () => {
   startDemoSession("demo-user-suzuki");
   const users = listDemoUsers();
@@ -192,6 +275,7 @@ test("both approvals complete the trade and move demo points once", () => {
   assert.equal(getSession().pointBalance, 4400);
   assert.equal(listBooks().find((book) => book.id === transaction.bookId).status, "SOLD");
   assert.equal(listNotifications().length, 1);
+  assert.equal(listNotifications()[0].type, "TRANSACTION_COMPLETED");
 
   const sellerBalance = getSession().pointBalance;
   assert.throws(() => approveTransaction(transaction.id), /すでに終了/);

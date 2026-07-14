@@ -1,12 +1,19 @@
-import { faculties, seedBooks, seedDemoUsers } from "./data.js";
+import {
+  faculties,
+  newDemoAccountInitialPoints,
+  seedBooks,
+  seedDemoUsers,
+} from "./data.js";
 
 const STORAGE_VERSION = "v5";
 const BOOKS_KEY = `keio-book-market.books.${STORAGE_VERSION}`;
 const TRANSACTIONS_KEY = `keio-book-market.transactions.${STORAGE_VERSION}`;
 const USERS_KEY = `keio-book-market.users.${STORAGE_VERSION}`;
 const NOTIFICATIONS_KEY = `keio-book-market.notifications.${STORAGE_VERSION}`;
+const COMMENTS_KEY = `keio-book-market.comments.${STORAGE_VERSION}`;
 const SESSION_KEY = `keio-book-market.session.${STORAGE_VERSION}`;
 const SESSION_DURATION_MS = 2 * 60 * 60 * 1000;
+const MAX_DEMO_ACCOUNTS = 20;
 
 function clone(value) {
   return JSON.parse(JSON.stringify(value));
@@ -138,17 +145,72 @@ function requireSession() {
 function readDemoUsers() {
   const storedProfiles = readJson(USERS_KEY, seedDemoUsers);
 
-  // デモ定義に存在するIDだけを有効にし、プロフィール改変によるアカウント追加を防ぐ。
-  return storedProfiles
-    .map((profile) => {
-      const account = seedDemoUsers.find((candidate) => candidate.id === profile.id);
-      return account ? profile : null;
-    })
-    .filter(Boolean);
+  // 初期アカウントまたは追加APIが発行したデモIDだけを読み込み、壊れた保存値は無効化する。
+  return storedProfiles.filter((profile) => {
+    const isSeedAccount = seedDemoUsers.some((candidate) => candidate.id === profile.id);
+    const isCreatedAccount =
+      profile.accountType === "CREATED_DEMO" &&
+      String(profile.id || "").startsWith("demo-user-created-");
+    return (
+      (isSeedAccount || isCreatedAccount) &&
+      typeof profile.nickname === "string" &&
+      profile.nickname.length >= 1 &&
+      profile.nickname.length <= 40 &&
+      faculties.includes(profile.faculty) &&
+      typeof profile.department === "string" &&
+      profile.department.length <= 40 &&
+      Number.isInteger(profile.year) &&
+      profile.year >= 1 &&
+      profile.year <= 6 &&
+      Number.isInteger(profile.pointBalance) &&
+      profile.pointBalance >= 0
+    );
+  });
 }
 
 export function listDemoUsers() {
   return clone(readDemoUsers());
+}
+
+export function createDemoAccount(input) {
+  const nickname = String(input.nickname || "").trim();
+  const faculty = String(input.faculty || "").trim();
+  const department = String(input.department || "").trim();
+  const year = Number(input.year);
+
+  if (!nickname || nickname.length > 40) {
+    throw new Error("ニックネームは1〜40文字で入力してください");
+  }
+  if (!faculties.includes(faculty)) {
+    throw new Error("学部を選択してください");
+  }
+  if (department.length > 40) {
+    throw new Error("学科・専攻は40文字以内で入力してください");
+  }
+  if (!Number.isInteger(year) || year < 1 || year > 6) {
+    throw new Error("学年を正しく選択してください");
+  }
+
+  const users = readDemoUsers();
+  if (users.length >= MAX_DEMO_ACCOUNTS) {
+    throw new Error("デモアカウントは20件まで追加できます");
+  }
+
+  // 実在の連絡先や認証情報は受け取らず、デモ専用IDと固定初期ポイントだけを発行する。
+  const account = {
+    id: createId("demo-user-created"),
+    accountType: "CREATED_DEMO",
+    nickname,
+    faculty,
+    department,
+    year,
+    pointBalance: newDemoAccountInitialPoints,
+    avatar: nickname.slice(0, 1).toUpperCase(),
+    createdAt: new Date().toISOString(),
+  };
+  users.push(account);
+  writeJson(USERS_KEY, users);
+  return clone(account);
 }
 
 export function getSession() {
@@ -228,21 +290,29 @@ export function updateProfile(input) {
   user.department = department;
   user.year = year;
   user.avatar = nickname.slice(0, 1).toUpperCase();
-  writeJson(USERS_KEY, users);
 
   // 表示用の名前は更新するが、所有権判定は変更不能な userId のまま維持する。
   const books = readJson(BOOKS_KEY, seedBooks);
   books.forEach((book) => {
     if (book.sellerId === user.id) book.sellerName = nickname;
   });
-  writeJson(BOOKS_KEY, books);
 
   const transactions = readJson(TRANSACTIONS_KEY, []);
   transactions.forEach((transaction) => {
     if (transaction.buyerId === user.id) transaction.buyerName = nickname;
     if (transaction.sellerId === user.id) transaction.sellerName = nickname;
   });
-  writeJson(TRANSACTIONS_KEY, transactions);
+
+  const comments = readJson(COMMENTS_KEY, []);
+  comments.forEach((comment) => {
+    if (comment.authorId === user.id) comment.authorName = nickname;
+  });
+  writeJsonBatch([
+    [USERS_KEY, users],
+    [BOOKS_KEY, books],
+    [TRANSACTIONS_KEY, transactions],
+    [COMMENTS_KEY, comments],
+  ]);
 
   return getSession();
 }
@@ -279,6 +349,73 @@ export function listNotifications() {
   return readJson(NOTIFICATIONS_KEY, []).filter(
     (notification) => notification.userId === session.userId,
   );
+}
+
+export function listComments(bookId) {
+  return readJson(COMMENTS_KEY, []).filter((comment) => comment.bookId === bookId);
+}
+
+export function createComment(bookId, input) {
+  const session = requireSession();
+  const books = readJson(BOOKS_KEY, seedBooks);
+  const book = books.find((candidate) => candidate.id === bookId);
+  const body = String(input?.body || "").trim();
+
+  if (!book) {
+    throw new Error("対象の教科書が見つかりません");
+  }
+  if (!body || body.length > 240) {
+    throw new Error("コメントは1〜240文字で入力してください");
+  }
+
+  const comments = readJson(COMMENTS_KEY, []);
+  const transactions = readJson(TRANSACTIONS_KEY, []);
+  const notifications = readJson(NOTIFICATIONS_KEY, []);
+  const comment = {
+    id: createId("comment"),
+    bookId: book.id,
+    authorId: session.userId,
+    authorName: session.name,
+    body,
+    createdAt: new Date().toISOString(),
+  };
+  comments.push(comment);
+
+  const recipientIds = new Set();
+  if (session.userId !== book.sellerId) {
+    recipientIds.add(book.sellerId);
+  } else {
+    // 出品者の返信は、既存コメント投稿者と進行中・完了済み取引の購入者へ通知する。
+    comments
+      .filter((candidate) => candidate.bookId === book.id)
+      .forEach((candidate) => recipientIds.add(candidate.authorId));
+    transactions
+      .filter((transaction) => transaction.bookId === book.id)
+      .forEach((transaction) => recipientIds.add(transaction.buyerId));
+  }
+  recipientIds.delete(session.userId);
+  const validUserIds = new Set(readDemoUsers().map((user) => user.id));
+
+  recipientIds.forEach((userId) => {
+    if (!validUserIds.has(userId)) return;
+    notifications.unshift({
+      id: createId("notification"),
+      type: "COMMENT",
+      userId,
+      bookId: book.id,
+      commentId: comment.id,
+      createdAt: comment.createdAt,
+      read: false,
+      message: `${session.name} さんが「${book.title}」にコメントしました`,
+    });
+  });
+
+  // コメントと通知を片方だけ残さない。backend移行時はDBトランザクションで置き換える。
+  writeJsonBatch([
+    [COMMENTS_KEY, comments],
+    [NOTIFICATIONS_KEY, notifications],
+  ]);
+  return clone(comment);
 }
 
 export function createListing(input) {
@@ -441,6 +578,7 @@ export function approveTransaction(transactionId) {
   book.status = "SOLD";
 
   const notificationBase = {
+    type: "TRANSACTION_COMPLETED",
     transactionId: transaction.id,
     bookId: book.id,
     createdAt: transaction.completedAt,
@@ -478,7 +616,7 @@ export function approveTransaction(transactionId) {
 
 export function resetDemoData() {
   if (!globalThis.localStorage) return;
-  [BOOKS_KEY, TRANSACTIONS_KEY, USERS_KEY, NOTIFICATIONS_KEY].forEach((key) => {
+  [BOOKS_KEY, TRANSACTIONS_KEY, USERS_KEY, NOTIFICATIONS_KEY, COMMENTS_KEY].forEach((key) => {
     globalThis.localStorage.removeItem(key);
   });
   getSessionStore()?.removeItem(SESSION_KEY);

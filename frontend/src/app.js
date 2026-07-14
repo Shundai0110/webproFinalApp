@@ -1,9 +1,12 @@
 import {
   approveTransaction,
+  createComment,
+  createDemoAccount,
   createListing,
   endDemoSession,
   getSession,
   listBooks,
+  listComments,
   listDemoUsers,
   listNotifications,
   listTransactions,
@@ -33,6 +36,7 @@ const refs = {
   demoUserSelect: document.querySelector("#demo-user-select"),
   startSession: document.querySelector("#start-session"),
   endSession: document.querySelector("#end-session"),
+  accountForm: document.querySelector("#account-form"),
   profileForm: document.querySelector("#profile-form"),
   searchInput: document.querySelector("#search-input"),
   facultyFilter: document.querySelector("#faculty-filter"),
@@ -64,6 +68,15 @@ function formatSessionExpiry(expiresAt) {
     hour: "2-digit",
     minute: "2-digit",
   }).format(new Date(expiresAt))}`;
+}
+
+function formatTimestamp(value) {
+  return new Intl.DateTimeFormat("ja-JP", {
+    month: "numeric",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(new Date(value));
 }
 
 function showToast(message) {
@@ -287,6 +300,78 @@ function createPaymentPreview(book, session, isOwnListing) {
   return panel;
 }
 
+function createCommentsPanel(book, session) {
+  const comments = listComments(book.id);
+  const section = document.createElement("section");
+  const heading = document.createElement("div");
+  const title = document.createElement("h4");
+  const count = document.createElement("span");
+  const list = document.createElement("ul");
+  const form = document.createElement("form");
+  const textarea = document.createElement("textarea");
+  const action = document.createElement("button");
+  const safetyNote = document.createElement("p");
+
+  section.className = "comment-section";
+  heading.className = "comment-heading";
+  title.textContent = "コメント";
+  count.className = "comment-count";
+  count.textContent = String(comments.length);
+  heading.append(title, count);
+
+  list.className = "comment-list";
+  if (comments.length === 0) {
+    const empty = document.createElement("li");
+    empty.className = "comment-empty";
+    empty.textContent = "コメントはありません";
+    list.append(empty);
+  } else {
+    comments.forEach((comment) => {
+      const item = document.createElement("li");
+      const meta = document.createElement("div");
+      const author = document.createElement("strong");
+      const timestamp = document.createElement("time");
+      const body = document.createElement("p");
+      author.textContent = comment.authorName;
+      timestamp.dateTime = comment.createdAt;
+      timestamp.textContent = formatTimestamp(comment.createdAt);
+      body.textContent = comment.body;
+      meta.className = "comment-meta";
+      meta.append(author, timestamp);
+      item.append(meta, body);
+      list.append(item);
+    });
+  }
+
+  form.className = "comment-form";
+  textarea.name = "body";
+  textarea.rows = 3;
+  textarea.maxLength = 240;
+  textarea.required = true;
+  textarea.disabled = !session.authenticated;
+  textarea.placeholder = session.authenticated ? "値下げ相談や状態の質問" : "利用開始後に投稿できます";
+  action.className = "small-button";
+  action.type = "submit";
+  action.disabled = !session.authenticated;
+  action.textContent = "コメント投稿";
+  safetyNote.className = "comment-safety-note";
+  safetyNote.textContent = "実在する連絡先や個人情報は入力しないでください。";
+  form.append(textarea, safetyNote, action);
+  form.addEventListener("submit", (event) => {
+    event.preventDefault();
+    try {
+      createComment(book.id, { body: textarea.value });
+      showToast("コメントを投稿しました");
+      render();
+    } catch (error) {
+      showToast(error.message);
+    }
+  });
+
+  section.append(heading, list, form);
+  return section;
+}
+
 function selectBook(bookId) {
   state.activeBookId = bookId;
   render();
@@ -408,6 +493,7 @@ function renderDetail(book, session) {
   const canPurchase =
     session.authenticated && book.status === "AVAILABLE" && !isOwnListing && hasEnoughPoints;
   const paymentPreview = createPaymentPreview(book, session, isOwnListing);
+  const commentsPanel = createCommentsPanel(book, session);
   purchaseButton.className = "primary-button";
   purchaseButton.type = "button";
   purchaseButton.disabled = !canPurchase;
@@ -432,7 +518,7 @@ function renderDetail(book, session) {
     }
   });
 
-  body.append(titleRow, detailList, description, paymentPreview, purchaseButton);
+  body.append(titleRow, detailList, description, paymentPreview, purchaseButton, commentsPanel);
   refs.bookDetail.append(cover, body);
 }
 
@@ -455,6 +541,22 @@ function render() {
 }
 
 function bindEvents() {
+  refs.accountForm.addEventListener("submit", (event) => {
+    event.preventDefault();
+    try {
+      const account = createDemoAccount(
+        Object.fromEntries(new FormData(refs.accountForm).entries()),
+      );
+      const session = startDemoSession(account.id);
+      refs.accountForm.reset();
+      syncListingFaculty(session);
+      showToast(`${session.name} を追加し、5,000 ptで利用を開始しました`);
+      render();
+    } catch (error) {
+      showToast(error.message);
+    }
+  });
+
   refs.startSession.addEventListener("click", () => {
     try {
       const session = startDemoSession(refs.demoUserSelect.value);
