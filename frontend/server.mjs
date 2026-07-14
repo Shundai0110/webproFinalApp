@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 
 const root = fileURLToPath(new URL(".", import.meta.url));
 const port = Number.parseInt(process.env.PORT || "4173", 10);
-const host = process.env.HOST || "127.0.0.1";
+const host = process.env.HOST || "0.0.0.0";
 
 const contentTypes = {
   ".css": "text/css; charset=utf-8",
@@ -37,13 +37,11 @@ const server = createServer(async (req, res) => {
     return;
   }
 
-  let filePath = resolvePath(req.url);
-
-  if (!existsSync(filePath)) {
-    filePath = join(root, "index.html");
-  }
-
   try {
+    let filePath = resolvePath(req.url);
+    if (!existsSync(filePath)) {
+      filePath = join(root, "index.html");
+    }
     const fileStat = await stat(filePath);
     if (fileStat.isDirectory()) {
       filePath = join(filePath, "index.html");
@@ -52,6 +50,10 @@ const server = createServer(async (req, res) => {
     res.writeHead(200, {
       "Content-Type": contentTypes[extname(filePath)] || "application/octet-stream",
       "Cache-Control": "no-store",
+      "Content-Security-Policy": "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self' http://127.0.0.1:4000; frame-ancestors 'none'; base-uri 'self'; form-action 'self'",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY",
     });
     if (req.method === "HEAD") {
       res.end();
@@ -65,5 +67,6 @@ const server = createServer(async (req, res) => {
 });
 
 server.listen(port, host, () => {
-  console.log(`Keio Book minimal app: http://${host}:${port}`);
+  const displayHost = host === "0.0.0.0" ? "127.0.0.1" : host;
+  console.log(`Keio Book minimal app: http://${displayHost}:${port}`);
 });

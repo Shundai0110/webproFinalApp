@@ -1,93 +1,33 @@
-import {
-  faculties,
-  newDemoAccountInitialPoints,
-  seedBooks,
-  seedDemoUsers,
-} from "./data.js";
+const TOKEN_KEY = "keio-book-demo.api-token.v1";
+const EXPIRES_KEY = "keio-book-demo.api-token-expires.v1";
+const CLIENT_KEY = "keio-book-demo.client-id.v1";
 
-const STORAGE_VERSION = "v5";
-const BOOKS_KEY = `keio-book-market.books.${STORAGE_VERSION}`;
-const TRANSACTIONS_KEY = `keio-book-market.transactions.${STORAGE_VERSION}`;
-const USERS_KEY = `keio-book-market.users.${STORAGE_VERSION}`;
-const NOTIFICATIONS_KEY = `keio-book-market.notifications.${STORAGE_VERSION}`;
-const COMMENTS_KEY = `keio-book-market.comments.${STORAGE_VERSION}`;
-const SESSION_KEY = `keio-book-market.session.${STORAGE_VERSION}`;
-const SESSION_DURATION_MS = 2 * 60 * 60 * 1000;
-const MAX_DEMO_ACCOUNTS = 20;
+function defaultApiBase() {
+  if (typeof location === "undefined") return "http://127.0.0.1:4000/api";
+  if (location.hostname === "127.0.0.1" && location.port === "4173") {
+    return "http://127.0.0.1:4000/api";
+  }
+  return `${location.origin}/api`;
+}
+
+const API_BASE = globalThis.__KEIO_BOOK_API_BASE__ || defaultApiBase();
+const cache = {
+  users: [],
+  books: [],
+  transactions: [],
+  notifications: [],
+  comments: [],
+  session: anonymousSession(),
+};
+
+let heartbeatTimer = 0;
 
 function clone(value) {
   return JSON.parse(JSON.stringify(value));
 }
 
-function readJson(key, fallback) {
-  if (!globalThis.localStorage) {
-    return clone(fallback);
-  }
-
-  const raw = globalThis.localStorage.getItem(key);
-  if (!raw) {
-    const seeded = clone(fallback);
-    globalThis.localStorage.setItem(key, JSON.stringify(seeded));
-    return seeded;
-  }
-
-  try {
-    return JSON.parse(raw);
-  } catch {
-    globalThis.localStorage.removeItem(key);
-    return clone(fallback);
-  }
-}
-
-function getSessionStore() {
-  return globalThis.sessionStorage ?? globalThis.localStorage;
-}
-
-function readOptionalJson(key, storage = globalThis.localStorage) {
-  if (!storage) return null;
-  const raw = storage.getItem(key);
-  if (!raw) return null;
-
-  try {
-    return JSON.parse(raw);
-  } catch {
-    storage.removeItem(key);
-    return null;
-  }
-}
-
-function writeJson(key, value) {
-  if (!globalThis.localStorage) return;
-  globalThis.localStorage.setItem(key, JSON.stringify(value));
-}
-
-function writeJsonBatch(entries) {
-  if (!globalThis.localStorage) return;
-  const snapshots = entries.map(([key]) => [key, globalThis.localStorage.getItem(key)]);
-
-  try {
-    entries.forEach(([key, value]) => {
-      globalThis.localStorage.setItem(key, JSON.stringify(value));
-    });
-  } catch (error) {
-    // localStorage はDBトランザクションを持たないため、失敗時は更新前の値へ戻す。
-    snapshots.forEach(([key, value]) => {
-      if (value === null) globalThis.localStorage.removeItem(key);
-      else globalThis.localStorage.setItem(key, value);
-    });
-    throw error;
-  }
-}
-
-function writeSession(value) {
-  const storage = getSessionStore();
-  if (!storage) return;
-  storage.setItem(SESSION_KEY, JSON.stringify(value));
-}
-
-function createId(prefix) {
-  const randomId = globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random()}`;
-  return `${prefix}-${randomId}`;
+function sessionStore() {
+  return globalThis.sessionStorage;
 }
 
 function anonymousSession() {
@@ -105,519 +45,367 @@ function anonymousSession() {
   };
 }
 
-function normalizeText(value) {
-  return String(value || "").trim().toLowerCase();
-}
-
-function matchesSearch(book, query) {
-  const term = normalizeText(query);
-  if (!term) return true;
-
-  return [book.title, book.course, book.faculty, book.department, book.description]
-    .map(normalizeText)
-    .some((value) => value.includes(term));
-}
-
-function calculateRelatedScore(book, query, session) {
-  let score = 0;
-  const term = normalizeText(query.search);
-
-  if (term && normalizeText(book.title).includes(term)) score += 40;
-  if (term && normalizeText(book.course).includes(term)) score += 30;
-  if (session.authenticated && book.faculty === session.faculty) score += 15;
-  if (session.authenticated && book.department === session.department) score += 15;
-  if (session.authenticated && book.targetYear === session.year) score += 10;
-  if (book.materialType === "REQUIRED") score += 5;
-  if (book.status === "AVAILABLE") score += 3;
-
-  return score;
-}
-
-function requireSession() {
-  // 画面の disabled 状態は改変できるため、更新処理の入口で毎回セッションを検証する。
-  const session = getSession();
-  if (!session.authenticated) {
-    throw new Error("デモアカウントを選択して利用を開始してください");
-  }
-  return session;
-}
-
-function readDemoUsers() {
-  const storedProfiles = readJson(USERS_KEY, seedDemoUsers);
-
-  // 初期アカウントまたは追加APIが発行したデモIDだけを読み込み、壊れた保存値は無効化する。
-  return storedProfiles.filter((profile) => {
-    const isSeedAccount = seedDemoUsers.some((candidate) => candidate.id === profile.id);
-    const isCreatedAccount =
-      profile.accountType === "CREATED_DEMO" &&
-      String(profile.id || "").startsWith("demo-user-created-");
-    return (
-      (isSeedAccount || isCreatedAccount) &&
-      typeof profile.nickname === "string" &&
-      profile.nickname.length >= 1 &&
-      profile.nickname.length <= 40 &&
-      faculties.includes(profile.faculty) &&
-      typeof profile.department === "string" &&
-      profile.department.length <= 40 &&
-      Number.isInteger(profile.year) &&
-      profile.year >= 1 &&
-      profile.year <= 6 &&
-      Number.isInteger(profile.pointBalance) &&
-      profile.pointBalance >= 0
-    );
-  });
-}
-
-export function listDemoUsers() {
-  return clone(readDemoUsers());
-}
-
-export function createDemoAccount(input) {
-  const nickname = String(input.nickname || "").trim();
-  const faculty = String(input.faculty || "").trim();
-  const department = String(input.department || "").trim();
-  const year = Number(input.year);
-
-  if (!nickname || nickname.length > 40) {
-    throw new Error("ニックネームは1〜40文字で入力してください");
-  }
-  if (!faculties.includes(faculty)) {
-    throw new Error("学部を選択してください");
-  }
-  if (department.length > 40) {
-    throw new Error("学科・専攻は40文字以内で入力してください");
-  }
-  if (!Number.isInteger(year) || year < 1 || year > 6) {
-    throw new Error("学年を正しく選択してください");
-  }
-
-  const users = readDemoUsers();
-  if (users.length >= MAX_DEMO_ACCOUNTS) {
-    throw new Error("デモアカウントは20件まで追加できます");
-  }
-
-  // 実在の連絡先や認証情報は受け取らず、デモ専用IDと固定初期ポイントだけを発行する。
-  const account = {
-    id: createId("demo-user-created"),
-    accountType: "CREATED_DEMO",
-    nickname,
-    faculty,
-    department,
-    year,
-    pointBalance: newDemoAccountInitialPoints,
-    avatar: nickname.slice(0, 1).toUpperCase(),
-    createdAt: new Date().toISOString(),
+function mapUser(user) {
+  return {
+    id: String(user.id),
+    demoUserKey: user.demoUserKey,
+    nickname: user.nickname,
+    faculty: user.faculty,
+    department: user.department || "",
+    year: Number(user.year),
+    pointBalance: Number(user.pointBalance),
+    avatar: String(user.nickname || "?").slice(0, 1).toUpperCase(),
+    iconUrl: user.iconUrl || null,
   };
-  users.push(account);
-  writeJson(USERS_KEY, users);
-  return clone(account);
+}
+
+function mapBook(book) {
+  return {
+    id: String(book.id),
+    title: book.title,
+    course: book.usedLesson,
+    faculty: book.usedFaculty || "学部未設定",
+    department: book.usedDepartment || "",
+    targetYear: book.targetYear,
+    usedYear: Number(book.usedYear),
+    materialType: book.materialType,
+    price: Number(book.price),
+    condition: "出品者メモ",
+    status: book.status,
+    sellerId: String(book.sellerId),
+    sellerName: book.seller?.nickname || "デモ出品者",
+    imageUrl: book.imageUrl || "/assets/book-generic.svg",
+    description: book.description || "状態メモは未入力です。",
+    relatedScore: Number(book.relatedScore || 0),
+  };
+}
+
+function mapTransaction(transaction) {
+  return {
+    id: String(transaction.id),
+    bookId: String(transaction.bookId),
+    bookTitle: transaction.book?.title || "教科書",
+    buyerId: String(transaction.buyerId),
+    buyerName: transaction.buyer?.nickname || "デモ購入者",
+    sellerId: String(transaction.sellerId),
+    sellerName: transaction.seller?.nickname || "デモ出品者",
+    offeredPrice: Number(transaction.offeredPrice),
+    buyerApproved: Boolean(transaction.buyerApproved),
+    sellerApproved: Boolean(transaction.sellerApproved),
+    status: transaction.status,
+    createdAt: transaction.createdAt,
+    completedAt: transaction.completedAt || null,
+    pointTransfer:
+      transaction.status === "COMPLETED"
+        ? { amount: Number(transaction.offeredPrice), unit: "DEMO_POINT" }
+        : undefined,
+  };
+}
+
+function mapComment(comment) {
+  return {
+    id: String(comment.id),
+    bookId: String(comment.bookId),
+    authorId: String(comment.authorId),
+    authorName: comment.authorName,
+    body: comment.body,
+    createdAt: comment.createdAt,
+  };
+}
+
+function token() {
+  return sessionStore()?.getItem(TOKEN_KEY) || "";
+}
+
+function clearToken() {
+  sessionStore()?.removeItem(TOKEN_KEY);
+  sessionStore()?.removeItem(EXPIRES_KEY);
+  cache.session = anonymousSession();
+}
+
+async function request(path, { method = "GET", body, authenticated = true } = {}) {
+  const headers = { Accept: "application/json" };
+  if (body !== undefined) headers["Content-Type"] = "application/json";
+  if (authenticated && token()) headers.Authorization = `Bearer ${token()}`;
+
+  let response;
+  try {
+    response = await fetch(`${API_BASE}${path}`, {
+      method,
+      headers,
+      body: body === undefined ? undefined : JSON.stringify(body),
+    });
+  } catch {
+    throw new Error("デモAPIへ接続できません。backendの起動を確認してください");
+  }
+
+  const payload = await response.json().catch(() => null);
+  if (!response.ok || !payload?.success) {
+    if (response.status === 401) clearToken();
+    const error = new Error(payload?.error?.message || `APIエラー (${response.status})`);
+    error.code = payload?.error?.code;
+    throw error;
+  }
+  return payload.data;
+}
+
+function setAuthenticatedSession(user, session) {
+  const profile = mapUser(user);
+  if (session?.token) sessionStore()?.setItem(TOKEN_KEY, session.token);
+  if (session?.expiresAt) sessionStore()?.setItem(EXPIRES_KEY, session.expiresAt);
+  cache.session = {
+    authenticated: true,
+    sessionId: token().slice(-16),
+    userId: profile.id,
+    name: profile.nickname,
+    faculty: profile.faculty,
+    department: profile.department,
+    year: profile.year,
+    pointBalance: profile.pointBalance,
+    avatar: profile.avatar,
+    expiresAt: session?.expiresAt || sessionStore()?.getItem(EXPIRES_KEY),
+  };
+  return cache.session;
+}
+
+async function refreshAccounts() {
+  cache.users = (await request("/auth/accounts", { authenticated: false })).map(mapUser);
+}
+
+async function refreshMarketplace() {
+  if (!cache.session.authenticated) {
+    cache.books = [];
+    cache.transactions = [];
+    cache.notifications = [];
+    cache.comments = [];
+    return;
+  }
+  const [books, transactions, notifications, comments, ownProfile] = await Promise.all([
+    request("/books"),
+    request("/transactions"),
+    request("/notifications"),
+    request("/comments"),
+    request("/users/me"),
+  ]);
+  cache.books = books.map(mapBook);
+  cache.transactions = transactions.map(mapTransaction);
+  cache.notifications = notifications.map((notification) => ({
+    ...notification,
+    id: String(notification.id),
+    userId: String(notification.userId),
+  }));
+  cache.comments = comments.map(mapComment);
+  setAuthenticatedSession(ownProfile);
+  await refreshAccounts();
+}
+
+async function openEphemeralDatabase() {
+  const lifecycle = await request("/demo/open", {
+    method: "POST",
+    body: {},
+    authenticated: false,
+  });
+  sessionStore()?.setItem(CLIENT_KEY, lifecycle.clientId);
+
+  if (typeof window !== "undefined") {
+    window.clearInterval(heartbeatTimer);
+    heartbeatTimer = window.setInterval(() => {
+      request("/demo/heartbeat", {
+        method: "POST",
+        body: { clientId: lifecycle.clientId },
+        authenticated: false,
+      }).catch(() => {});
+    }, 30_000);
+
+    window.addEventListener(
+      "pagehide",
+      (event) => {
+        // Back/Forward Cacheへの退避は終了ではないため、復帰後もheartbeatを継続する。
+        if (event.persisted) return;
+        window.clearInterval(heartbeatTimer);
+        const body = new URLSearchParams({ clientId: lifecycle.clientId });
+        navigator.sendBeacon?.(`${API_BASE}/demo/close`, body);
+      },
+    );
+  }
+  return lifecycle;
+}
+
+export async function initializeApi() {
+  await openEphemeralDatabase();
+  await refreshAccounts();
+
+  if (token()) {
+    try {
+      const profile = await request("/users/me");
+      setAuthenticatedSession(profile);
+    } catch {
+      clearToken();
+    }
+  }
+
+  // 外部認証を持たない展示用アプリなので、初回は先頭の架空アカウントを自動選択する。
+  if (!cache.session.authenticated && cache.users[0]) {
+    await startDemoSession(cache.users[0].id);
+  } else {
+    await refreshMarketplace();
+  }
+  return { session: getSession(), users: listDemoUsers() };
 }
 
 export function getSession() {
-  const sessionStore = getSessionStore();
-  const storedSession = readOptionalJson(SESSION_KEY, sessionStore);
-  if (!storedSession) return anonymousSession();
-
-  const expiresAt = Date.parse(storedSession.expiresAt);
-  const user = readDemoUsers().find((candidate) => candidate.id === storedSession.userId);
-
-  if (!user || !Number.isFinite(expiresAt) || expiresAt <= Date.now()) {
-    sessionStore?.removeItem(SESSION_KEY);
-    return anonymousSession();
-  }
-
-  return {
-    authenticated: true,
-    sessionId: storedSession.sessionId,
-    userId: user.id,
-    name: user.nickname,
-    faculty: user.faculty,
-    department: user.department,
-    year: user.year,
-    pointBalance: user.pointBalance,
-    avatar: user.avatar,
-    expiresAt: storedSession.expiresAt,
-  };
+  return clone(cache.session);
 }
 
-export function startDemoSession(userId) {
-  const user = readDemoUsers().find((candidate) => candidate.id === userId);
-  if (!user) {
-    throw new Error("選択したデモアカウントが見つかりません");
-  }
+export function listDemoUsers() {
+  return clone(cache.users);
+}
 
-  // 外部認証や実在資格情報を使わず、タブ単位で期限付きIDだけを保持する仮想セッション。
-  const now = Date.now();
-  writeSession({
-    sessionId: createId("demo-session"),
-    userId: user.id,
-    createdAt: new Date(now).toISOString(),
-    expiresAt: new Date(now + SESSION_DURATION_MS).toISOString(),
+export async function createDemoAccount(input) {
+  const result = await request("/auth/register", {
+    method: "POST",
+    body: {
+      nickname: String(input.nickname || "").trim(),
+      faculty: String(input.faculty || "").trim(),
+      department: String(input.department || "").trim(),
+      year: Number(input.year),
+    },
+    authenticated: false,
   });
+  setAuthenticatedSession(result.user, result.session);
+  await refreshMarketplace();
+  return mapUser(result.user);
+}
 
+export async function startDemoSession(userId) {
+  const result = await request("/auth/session", {
+    method: "POST",
+    body: { userId: Number(userId) },
+    authenticated: false,
+  });
+  setAuthenticatedSession(result.user, result.session);
+  await refreshMarketplace();
   return getSession();
 }
 
 export function endDemoSession() {
-  getSessionStore()?.removeItem(SESSION_KEY);
-  return anonymousSession();
-}
-
-export function updateProfile(input) {
-  const session = requireSession();
-  const nickname = String(input.nickname || "").trim();
-  const faculty = String(input.faculty || "").trim();
-  const department = String(input.department || "").trim();
-  const year = Number(input.year);
-
-  if (!nickname || nickname.length > 40) {
-    throw new Error("ニックネームは1〜40文字で入力してください");
-  }
-  if (!faculties.includes(faculty)) {
-    throw new Error("学部を選択してください");
-  }
-  if (department.length > 40) {
-    throw new Error("学科・専攻は40文字以内で入力してください");
-  }
-  if (!Number.isInteger(year) || year < 1 || year > 6) {
-    throw new Error("学年を正しく選択してください");
-  }
-
-  const users = readDemoUsers();
-  const user = users.find((candidate) => candidate.id === session.userId);
-  user.nickname = nickname;
-  user.faculty = faculty;
-  user.department = department;
-  user.year = year;
-  user.avatar = nickname.slice(0, 1).toUpperCase();
-
-  // 表示用の名前は更新するが、所有権判定は変更不能な userId のまま維持する。
-  const books = readJson(BOOKS_KEY, seedBooks);
-  books.forEach((book) => {
-    if (book.sellerId === user.id) book.sellerName = nickname;
-  });
-
-  const transactions = readJson(TRANSACTIONS_KEY, []);
-  transactions.forEach((transaction) => {
-    if (transaction.buyerId === user.id) transaction.buyerName = nickname;
-    if (transaction.sellerId === user.id) transaction.sellerName = nickname;
-  });
-
-  const comments = readJson(COMMENTS_KEY, []);
-  comments.forEach((comment) => {
-    if (comment.authorId === user.id) comment.authorName = nickname;
-  });
-  writeJsonBatch([
-    [USERS_KEY, users],
-    [BOOKS_KEY, books],
-    [TRANSACTIONS_KEY, transactions],
-    [COMMENTS_KEY, comments],
-  ]);
-
+  clearToken();
+  cache.transactions = [];
+  cache.notifications = [];
+  cache.comments = [];
   return getSession();
 }
 
-export function listBooks(filters = {}) {
-  const books = readJson(BOOKS_KEY, seedBooks);
-  const session = getSession();
+export async function updateProfile(input) {
+  const user = await request("/users/me", {
+    method: "PATCH",
+    body: {
+      nickname: String(input.nickname || "").trim(),
+      faculty: String(input.faculty || "").trim(),
+      department: String(input.department || "").trim(),
+      year: Number(input.year),
+    },
+  });
+  setAuthenticatedSession(user);
+  await refreshMarketplace();
+  return getSession();
+}
 
-  return books
-    .filter((book) => matchesSearch(book, filters.search))
-    .filter((book) => !filters.faculty || book.faculty === filters.faculty)
-    .filter((book) => !filters.status || book.status === filters.status)
-    .map((book) => ({
-      ...book,
-      relatedScore: calculateRelatedScore(book, filters, session),
-    }))
-    .sort((a, b) => b.relatedScore - a.relatedScore || b.usedYear - a.usedYear);
+function normalizeText(value) {
+  return String(value || "").trim().toLowerCase();
+}
+
+export function listBooks(filters = {}) {
+  const term = normalizeText(filters.search);
+  return clone(
+    cache.books
+      .filter(
+        (book) =>
+          !term ||
+          [book.title, book.course, book.faculty, book.department, book.description]
+            .map(normalizeText)
+            .some((value) => value.includes(term)),
+      )
+      .filter((book) => !filters.faculty || book.faculty === filters.faculty)
+      .filter((book) => !filters.status || book.status === filters.status)
+      .sort((left, right) => right.relatedScore - left.relatedScore || right.usedYear - left.usedYear),
+  );
 }
 
 export function listTransactions() {
-  const session = getSession();
-  if (!session.authenticated) return [];
-
-  return readJson(TRANSACTIONS_KEY, []).filter(
-    (transaction) =>
-      transaction.buyerId === session.userId || transaction.sellerId === session.userId,
-  );
+  return clone(cache.transactions);
 }
 
 export function listNotifications() {
-  const session = getSession();
-  if (!session.authenticated) return [];
-
-  return readJson(NOTIFICATIONS_KEY, []).filter(
-    (notification) => notification.userId === session.userId,
-  );
+  return clone(cache.notifications);
 }
 
 export function listComments(bookId) {
-  return readJson(COMMENTS_KEY, []).filter((comment) => comment.bookId === bookId);
+  return clone(cache.comments.filter((comment) => comment.bookId === String(bookId)));
 }
 
-export function createComment(bookId, input) {
-  const session = requireSession();
-  const books = readJson(BOOKS_KEY, seedBooks);
-  const book = books.find((candidate) => candidate.id === bookId);
-  const body = String(input?.body || "").trim();
-
-  if (!book) {
-    throw new Error("対象の教科書が見つかりません");
-  }
-  if (!body || body.length > 240) {
-    throw new Error("コメントは1〜240文字で入力してください");
-  }
-
-  const comments = readJson(COMMENTS_KEY, []);
-  const transactions = readJson(TRANSACTIONS_KEY, []);
-  const notifications = readJson(NOTIFICATIONS_KEY, []);
-  const comment = {
-    id: createId("comment"),
-    bookId: book.id,
-    authorId: session.userId,
-    authorName: session.name,
-    body,
-    createdAt: new Date().toISOString(),
-  };
-  comments.push(comment);
-
-  const recipientIds = new Set();
-  if (session.userId !== book.sellerId) {
-    recipientIds.add(book.sellerId);
-  } else {
-    // 出品者の返信は、既存コメント投稿者と進行中・完了済み取引の購入者へ通知する。
-    comments
-      .filter((candidate) => candidate.bookId === book.id)
-      .forEach((candidate) => recipientIds.add(candidate.authorId));
-    transactions
-      .filter((transaction) => transaction.bookId === book.id)
-      .forEach((transaction) => recipientIds.add(transaction.buyerId));
-  }
-  recipientIds.delete(session.userId);
-  const validUserIds = new Set(readDemoUsers().map((user) => user.id));
-
-  recipientIds.forEach((userId) => {
-    if (!validUserIds.has(userId)) return;
-    notifications.unshift({
-      id: createId("notification"),
-      type: "COMMENT",
-      userId,
-      bookId: book.id,
-      commentId: comment.id,
-      createdAt: comment.createdAt,
-      read: false,
-      message: `${session.name} さんが「${book.title}」にコメントしました`,
-    });
+export async function createComment(bookId, input) {
+  const comment = await request(`/books/${Number(bookId)}/comments`, {
+    method: "POST",
+    body: { body: String(input?.body || "").trim() },
   });
-
-  // コメントと通知を片方だけ残さない。backend移行時はDBトランザクションで置き換える。
-  writeJsonBatch([
-    [COMMENTS_KEY, comments],
-    [NOTIFICATIONS_KEY, notifications],
-  ]);
-  return clone(comment);
+  await refreshMarketplace();
+  return mapComment(comment);
 }
 
-export function createListing(input) {
-  const session = requireSession();
-  const books = readJson(BOOKS_KEY, seedBooks);
-  const title = String(input.title || "").trim();
-  const course = String(input.course || "").trim();
-  const price = Number(input.price);
-  const usedYear = Number(input.usedYear);
-
-  if (!title || !course) {
-    throw new Error("教科書名と授業名を入力してください");
-  }
-  if (!Number.isInteger(price) || price < 0) {
-    throw new Error("価格は0以上の整数で入力してください");
-  }
-  if (!Number.isInteger(usedYear) || usedYear < 2000 || usedYear > 2100) {
-    throw new Error("使用年度を正しく入力してください");
-  }
-
-  const book = {
-    id: createId("book"),
-    title,
-    course,
-    faculty: String(input.faculty || session.faculty),
-    department: session.department,
-    targetYear: session.year,
-    usedYear,
-    materialType: input.materialType === "REFERENCE" ? "REFERENCE" : "REQUIRED",
-    price,
-    condition: "出品者メモ",
-    status: "AVAILABLE",
-    sellerId: session.userId,
-    sellerName: session.name,
-    imageUrl: "assets/book-generic.svg",
-    description: String(input.description || "").trim() || "状態メモは未入力です。",
-  };
-
-  books.unshift(book);
-  writeJson(BOOKS_KEY, books);
-  return clone(book);
-}
-
-export function requestPurchase(bookId) {
-  const session = requireSession();
-  const books = readJson(BOOKS_KEY, seedBooks);
-  const target = books.find((book) => book.id === bookId);
-
-  if (!target) {
-    throw new Error("対象の教科書が見つかりません");
-  }
-  if (target.status !== "AVAILABLE") {
-    throw new Error("この教科書は現在購入相談を開始できません");
-  }
-  // 表示名は編集可能なため、自己購入の認可判定には必ず安定したIDを使う。
-  if (target.sellerId === session.userId) {
-    throw new Error("自分が出品した教科書は購入できません");
-  }
-  if (!Number.isInteger(session.pointBalance) || session.pointBalance < target.price) {
-    throw new Error("仮想ポイント残高が不足しています");
-  }
-
-  target.status = "NEGOTIATING";
-  const transactions = readJson(TRANSACTIONS_KEY, []);
-  const transaction = {
-    id: createId("transaction"),
-    bookId: target.id,
-    bookTitle: target.title,
-    buyerId: session.userId,
-    buyerName: session.name,
-    sellerId: target.sellerId,
-    sellerName: target.sellerName,
-    offeredPrice: target.price,
-    buyerApproved: false,
-    sellerApproved: false,
-    status: "PENDING",
-    createdAt: new Date().toISOString(),
-  };
-
-  transactions.unshift(transaction);
-  // UIを経由しない呼び出しでも、交渉中への変更と相談作成を片方だけ残さない。
-  writeJsonBatch([
-    [BOOKS_KEY, books],
-    [TRANSACTIONS_KEY, transactions],
-  ]);
-  return clone(transaction);
-}
-
-export function approveTransaction(transactionId) {
-  const session = requireSession();
-  const users = readDemoUsers();
-  const books = readJson(BOOKS_KEY, seedBooks);
-  const transactions = readJson(TRANSACTIONS_KEY, []);
-  const notifications = readJson(NOTIFICATIONS_KEY, []);
-  const transaction = transactions.find((candidate) => candidate.id === transactionId);
-
-  if (!transaction) {
-    throw new Error("対象の取引が見つかりません");
-  }
-  if (transaction.status !== "PENDING") {
-    throw new Error("この取引はすでに終了しています");
-  }
-
-  const isBuyer = transaction.buyerId === session.userId;
-  const isSeller = transaction.sellerId === session.userId;
-  if (!isBuyer && !isSeller) {
-    throw new Error("この取引を承諾する権限がありません");
-  }
-
-  const buyer = users.find((user) => user.id === transaction.buyerId);
-  const seller = users.find((user) => user.id === transaction.sellerId);
-  const book = books.find((candidate) => candidate.id === transaction.bookId);
-  if (!buyer || !seller || !book) {
-    throw new Error("取引に必要なデモデータが見つかりません");
-  }
-  if (book.status !== "NEGOTIATING") {
-    throw new Error("対象の教科書は取引中ではありません");
-  }
-  if (!Number.isInteger(transaction.offeredPrice) || transaction.offeredPrice < 0) {
-    throw new Error("仮想ポイント価格が不正です");
-  }
-  if (
-    !Number.isInteger(buyer.pointBalance) ||
-    buyer.pointBalance < 0 ||
-    !Number.isInteger(seller.pointBalance) ||
-    seller.pointBalance < 0
-  ) {
-    throw new Error("仮想ポイント残高が不正です");
-  }
-  if (isBuyer && buyer.pointBalance < transaction.offeredPrice) {
-    throw new Error("仮想ポイント残高が不足しています");
-  }
-
-  const approvalKey = isBuyer ? "buyerApproved" : "sellerApproved";
-  if (transaction[approvalKey]) {
-    throw new Error("このアカウントはすでに承諾しています");
-  }
-
-  transaction[approvalKey] = true;
-  transaction.updatedAt = new Date().toISOString();
-
-  if (!transaction.buyerApproved || !transaction.sellerApproved) {
-    writeJson(TRANSACTIONS_KEY, transactions);
-    return clone(transaction);
-  }
-
-  if (buyer.pointBalance < transaction.offeredPrice) {
-    throw new Error("仮想ポイント残高が不足しています");
-  }
-
-  // 双方承諾が揃った時だけ、換金不能なデモポイントと取引状態を同時に確定する。
-  buyer.pointBalance -= transaction.offeredPrice;
-  seller.pointBalance += transaction.offeredPrice;
-  transaction.status = "COMPLETED";
-  transaction.completedAt = new Date().toISOString();
-  transaction.pointTransfer = {
-    amount: transaction.offeredPrice,
-    unit: "DEMO_POINT",
-  };
-  book.status = "SOLD";
-
-  const notificationBase = {
-    type: "TRANSACTION_COMPLETED",
-    transactionId: transaction.id,
-    bookId: book.id,
-    createdAt: transaction.completedAt,
-    read: false,
-  };
-  notifications.unshift(
-    {
-      ...notificationBase,
-      id: createId("notification"),
-      userId: buyer.id,
-      message: `${book.title} の取引が完了し、${transaction.offeredPrice.toLocaleString(
-        "ja-JP",
-      )} pt を支払いました`,
+export async function createListing(input) {
+  const session = getSession();
+  const book = await request("/books", {
+    method: "POST",
+    body: {
+      title: String(input.title || "").trim(),
+      price: Number(input.price),
+      description: String(input.description || "").trim() || undefined,
+      imageUrl: "/assets/book-generic.svg",
+      usedLesson: String(input.course || "").trim(),
+      usedYear: Number(input.usedYear),
+      usedFaculty: String(input.faculty || session.faculty),
+      usedDepartment: session.department,
+      targetYear: session.year,
+      materialType: input.materialType === "REFERENCE" ? "REFERENCE" : "REQUIRED",
+      category: "デモ出品",
     },
-    {
-      ...notificationBase,
-      id: createId("notification"),
-      userId: seller.id,
-      message: `${book.title} の取引が完了し、${transaction.offeredPrice.toLocaleString(
-        "ja-JP",
-      )} pt を受け取りました`,
-    },
-  );
-
-  // backend 実装時は、この一括更新を必ずDBトランザクションへ置き換える。
-  writeJsonBatch([
-    [USERS_KEY, users],
-    [BOOKS_KEY, books],
-    [TRANSACTIONS_KEY, transactions],
-    [NOTIFICATIONS_KEY, notifications],
-  ]);
-
-  return clone(transaction);
-}
-
-export function resetDemoData() {
-  if (!globalThis.localStorage) return;
-  [BOOKS_KEY, TRANSACTIONS_KEY, USERS_KEY, NOTIFICATIONS_KEY, COMMENTS_KEY].forEach((key) => {
-    globalThis.localStorage.removeItem(key);
   });
-  getSessionStore()?.removeItem(SESSION_KEY);
+  await refreshMarketplace();
+  return mapBook(book);
+}
+
+export async function requestPurchase(bookId) {
+  const book = cache.books.find((candidate) => candidate.id === String(bookId));
+  if (!book) throw new Error("対象の教科書が見つかりません");
+  const transaction = await request("/transactions", {
+    method: "POST",
+    body: {
+      bookId: Number(bookId),
+      offeredPrice: book.price,
+      message: "デモ用の購入相談です。実在する連絡先は含みません。",
+    },
+  });
+  await refreshMarketplace();
+  return mapTransaction(transaction);
+}
+
+export async function approveTransaction(transactionId) {
+  const transaction = await request(`/transactions/${Number(transactionId)}`, {
+    method: "PATCH",
+    body: { action: "APPROVE" },
+  });
+  await refreshMarketplace();
+  return mapTransaction(transaction);
+}
+
+export async function resetDemoData() {
+  await request("/demo/reset", { method: "POST", body: {} });
+  clearToken();
+  cache.books = [];
+  cache.transactions = [];
+  cache.notifications = [];
+  cache.comments = [];
+  await refreshAccounts();
+  if (cache.users[0]) await startDemoSession(cache.users[0].id);
 }

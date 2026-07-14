@@ -13,9 +13,10 @@ Reviewer は独立性を保つため、このファイルを参照しません�
 
 - プロジェクトは慶應生向け教科書売買アプリのデモである。
 - frontend は依存関係なしの静的 SPA で、デモアカウント追加・選択、仮想セッション、プロフィール編集、教科書一覧、検索、詳細、出品、コメント、購入相談、双方承諾、仮想ポイント取引、画面内通知の UI を持つ。
-- backend は Express 5 / TypeScript / Prisma 7で、health、署名付きデモ認証、プロフィール、Books、Transactions、成立通知APIを持つ。
-- backend PrismaにはUser、Book、Transaction、NotificationモデルとMySQL初期migrationがある。frontendはまだbackendへ接続せずlocalStorage版を使う。
-- リポジトリ直下の `npm run dev` は frontend を `http://127.0.0.1:4173` で起動する。
+- backend は Express 5 / TypeScriptで、health、署名付きデモ認証、プロフィール、Books、Transactions、Comments、Notifications、demo lifecycle APIを持つ。
+- frontendはfetch/Bearer認証でbackendへ接続し、ドメインデータをブラウザストレージへ保存しない。
+- 無料公開の既定storageはNode.js組み込みSQLite `:memory:`。Prisma 7 / MySQLモデル・migration・seedは承諾制のローカル検証用として残す。
+- リポジトリ直下の `npm run dev` は統合サーバーを通常4000番で起動し、開発時に使用中なら4001番以降へ切り替える。
 - リポジトリ直下の `npm test` は frontend と backend の標準 Node.js テストを実行する。
 
 ## 継続する制約
@@ -28,9 +29,9 @@ Reviewer は独立性を保つため、このファイルを参照しません�
 
 ## 現在の残タスク
 
-- frontendからbackend APIへの接続は未実装。
-- backend版コメントAPIは未実装。ローカルMySQLは `.local/mysql` をデータディレクトリとして127.0.0.1:3307で使用し、手動起動が必要である。
-- ブラウザ上の一連の手動操作は未確認。
+- Renderへの実デプロイと、Render上での複数ブラウザ共有・停止後初期化は未確認。
+- ローカルHTTPと自動テストは確認済みだが、実ブラウザ画面の目視操作は未確認。
+- 任意のMySQLモードはCommentsを永続化せず、無料公開では使用しない。ローカルMySQLは `.local/mysql` の127.0.0.1:3307に残っている。
 
 ## 2026-07-14 の実装
 
@@ -59,3 +60,10 @@ Reviewer は独立性を保つため、このファイルを参照しません�
 - seed再実行時は取引後の仮想ポイントを巻き戻さず、実在個人情報・認証情報・決済情報を投入しない。
 - MySQLへ接続するmigration、seed、API起動は、接続先・変更内容・件数・既存データ影響を提示し、ユーザーの明示承諾後だけ実行する。承諾後、ローカル3307番へmigrationとseedを適用した。
 - `keio_book_demo` にはUser 5件、Book 4件、Transaction 2件、Notification 2件があり、seed再実行後も件数が増えないことを確認した。
+- frontendのAPI境界をlocalStorage実装からfetch/Bearer実装へ置き換え、認証、アカウント、プロフィール、Books、Transactions、Comments、NotificationsをExpress APIへ接続した。
+- backendにNode.js組み込みSQLite `:memory:`のUser、Book、Transaction、Comment、Notification schema、制約、index、架空seedを追加した。
+- 一時SQLiteでも自己購入拒否、価格一致、残高、当事者承諾、Book状態、ポイント移動、通知を単一transactionで処理する。
+- ブラウザopen/30秒heartbeat/close APIを追加し、最終client終了、90秒通信断、プロセス停止時にデータをseed状態へ戻す。共有中の手動resetを拒否し、active client上限を200件にした。
+- Expressから静的frontendとAPIを同一オリジン配信し、Render Free Web Service 1個だけを作る `render.yaml` を追加した。MySQL、Persistent Disk、外部DB、カード・課金設定は公開構成に含めない。
+- `npm run dev` は一時DB統合サーバーを起動し、開発時のEADDRINUSEでは最大10ポート先まで再試行する。本番では指定PORTのbind失敗を異常終了にする。
+- frontendのAPIモックテストとbackend一時DBテストを追加し、localStorage未使用、認証header、5,000ポイント、自己購入拒否、双方成立、ポイント移動、最終client終了時resetを確認した。

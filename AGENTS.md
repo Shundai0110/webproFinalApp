@@ -1,9 +1,9 @@
 # AGENTS.md
 
 このファイルは、このリポジトリで作業するエージェント向けの開発ガイドです。
-現時点のリポジトリ実体は、設計書の `README.md`、依存関係なしで動く静的フロントエンド、Express / Prisma / MySQL backend です。
+現時点のリポジトリ実体は、設計書の `README.md`、静的フロントエンド、Express API、Node.js組み込みSQLiteによる一時DB、任意のローカル検証用Prisma / MySQL構成です。
 frontend にはデモアカウント追加・選択、期限付き仮想セッション、プロフィール編集、教科書の簡易出品・検索・購入相談、コメント、双方承諾、仮想ポイント取引、画面内通知を実装しています。
-backend には署名付きデモ認証、プロフィール、Books、Transactions、成立通知API、Prismaモデル、MySQL migration、DBトランザクションによる購入確定処理を実装しています。frontendからbackendへの接続はまだ未実装です。
+frontendは `fetch` とBearer tokenでbackendへ接続し、backendには署名付きデモ認証、プロフィール、Books、Transactions、Comments、Notifications、ブラウザ生命周期API、一時DBトランザクションによる購入確定処理を実装しています。ドメインデータはブラウザストレージへ保存しません。
 実決済、クレジットカード登録、銀行口座登録、実在個人情報の入力・保存は本プロジェクトでは実装しません。
 メール、電話番号、住所、学生証、本人確認書類などが必要な画面では、架空のデモデータとして保存し、実データと同等のセキュリティで扱います。
 
@@ -12,7 +12,8 @@ backend には署名付きデモ認証、プロフィール、Books、Transactio
 - プロジェクト名: 慶應生向け教科書売買アプリ
 - 目的: 慶應義塾大学の学生同士が教科書を検索、出品、購入リクエスト、双方承諾による取引成立を行える Web アプリを作る。
 - デモ方針: 外部に見せる可能性があるデモとして、支払いは仮想ポイントだけで表現し、実際の金銭の受け渡しは発生させない。
-- 想定技術: Next.js / React / TypeScript / Node.js / Express / Prisma / MySQL / Render.com
+- 現在の技術: HTML / CSS / JavaScript / TypeScript / Node.js / Express / SQLite `:memory:` / Render.com
+- 任意のローカル永続化検証: Prisma / MySQL
 - パッケージ管理: npm を想定する。
 - 基本方針: フロントエンド、バックエンド、データ層を分離した 3 層構造で実装する。
 
@@ -48,10 +49,11 @@ webproFinalApp/
 │   └── styles.css
 ├── AGENTS.md
 ├── package.json
+├── render.yaml
 └── README.md
 ```
 
-本格実装へ進める場合は README の「5.3 ディレクトリ構成案」を基準にファイルを追加してください。
+既存実装を拡張する場合は、現在の `frontend/src/` と `backend/src/` の責務分離を維持してください。READMEの「5.3 ディレクトリ構成案」は将来構成であり、現在の実体を優先します。
 
 ## 常時適用ルール
 
@@ -117,13 +119,12 @@ project-root/
 
 ### frontend
 
-- Next.js App Router を想定する。
-- 画面は `frontend/app/` に配置する。
-- 再利用 UI は `frontend/components/` に配置する。
-- API クライアントは `frontend/lib/api.ts` に集約する。
-- 型定義は `frontend/types/` に配置する。
+- 現在は `frontend/index.html`、`frontend/styles.css`、`frontend/src/` で構成する静的SPAです。
+- DOM表示とイベント処理は `frontend/src/app.js`、API通信と画面用キャッシュは `frontend/src/apiClient.js` に集約する。
 - Prisma Client や SQL はフロントエンドに書かない。
-- API ベース URL は `NEXT_PUBLIC_API_BASE_URL` から取得する。
+- 通常はExpressから同一オリジン配信し、`/api` を使用する。4173番の単独frontend開発時だけ4000番のbackendへ接続する。
+- User、Book、Transaction、Comment、Notification、ポイント残高を `localStorage` や `sessionStorage` に保存しない。
+- `sessionStorage` に保存できるのは署名付きデモtoken、有効期限、一時client IDだけとする。
 
 想定画面:
 
@@ -139,18 +140,21 @@ project-root/
 
 ### backend
 
-- 認証・プロフィール・Books・Transactions・成立通知のドメイン API を実装済み。
+- 認証・プロフィール・Books・Transactions・Comments・Notifications・demo lifecycle APIを実装済み。
 - Express API を `backend/src/` に実装する。
 - HTTP 入口は routes、リクエスト処理は controllers、業務ロジックは services、DB アクセスは repositories に分ける。
 - Prisma Client は `backend/src/lib/prisma.ts` に集約する。
+- 無料公開用のSQLiteアクセスは `backend/src/lib/ephemeralStore.ts` に集約する。
 - 画面表示や React コンポーネントをバックエンドに置かない。
-- DB 更新が複数テーブルにまたがる処理は Prisma の transaction で実行する。
+- DB 更新が複数テーブルにまたがる処理は、選択中のstorageに対応する単一DB transactionで実行する。
 - 認証が必要なAPIは、2時間有効な署名付きBearerデモセッションを必須とする。
-- Book状態、Transaction、仮想ポイント、成立通知の確定は単一のPrisma DBトランザクションで行う。
+- Book状態、Transaction、仮想ポイント、成立通知の確定は単一DBトランザクションで行う。
 
 想定 API:
 
 - `POST /api/auth/register`
+- `GET /api/auth/accounts`
+- `POST /api/auth/session`
 - `GET /api/users/me`
 - `PATCH /api/users/me`
 - `GET /api/books`
@@ -159,35 +163,55 @@ project-root/
 - `PATCH /api/books/:id`
 - `DELETE /api/books/:id`
 - `POST /api/transactions`
+- `GET /api/transactions`
 - `GET /api/transactions/:id`
 - `PATCH /api/transactions/:id`
 - `GET /api/notifications`
+- `GET /api/comments`
+- `GET /api/books/:id/comments`
+- `POST /api/books/:id/comments`
+- `POST /api/demo/open`
+- `POST /api/demo/heartbeat`
+- `POST /api/demo/close`
+- `POST /api/demo/reset`
 
 ### database
 
-- `User`、`Book`、`Transaction`、`Notification` のPrismaモデルと初期migrationを実装済み。
+- 無料公開の既定値は `DEMO_STORAGE_MODE=ephemeral` とし、Node.js組み込み `node:sqlite` の `:memory:` DBを使用する。
+- 一時DBにはUser、Book、Transaction、Comment、Notificationのtable、外部キー、CHECK制約、index、架空seedを作成する。
+- 最後のブラウザ終了時、90秒heartbeatなし、プロセス停止・再起動時に変更データを破棄する。永続性やバックアップを追加しない。
+- 複数ブラウザは同じWeb Serviceプロセスが動作している間だけ一時DBを共有する。
+- 手動初期化はactive clientが1つ以下の場合だけ許可し、同時接続client数は200件を上限とする。
+- `User`、`Book`、`Transaction`、`Notification` のPrismaモデルと初期migrationは任意のローカルMySQL検証用として残す。
 - `backend/prisma/seed.ts` に架空ユーザー・Book・Transaction・通知の冪等seedを実装済み。
 - Prisma schema は `backend/prisma/schema.prisma` に置く。
-- MySQL を前提にする。
+- Render無料公開ではMySQL、Persistent Disk、外部DBを使用しない。
 - `users`、`books`、`transactions` は snake_case 複数形の DB テーブルとして扱う。
 
 ## 起動方法
 
-現時点の frontend は `frontend/` 配下の静的 SPA です。
-frontend は外部依存がないため `npm install` は不要です。
+Node.js 24.14.1以上とnpmを使用します。Renderは `NODE_VERSION=24.14.1` で固定します。初回だけbackend依存関係を導入します。
 
-リポジトリ直下から起動する場合:
+```bash
+npm ci --prefix backend
+```
+
+リポジトリ直下から無料公開と同じ一時DBモードで起動します。
 
 ```bash
 npm run dev
 ```
 
-このコマンドは現在の開発対象である frontend を起動します。
+このコマンドはExpress API、一時SQLite、静的frontendをまとめて起動します。コンソールに表示されるURL（通常は `http://127.0.0.1:4000`）を使用します。開発時に使用中なら4001番以降を最大10回まで試しますが、本番ではRender指定ポートのbind失敗をそのまま異常終了させます。
 起動後はサイドバーで架空のデモアカウントを選び、`利用開始・切替` を押して操作します。新しいデモアカウントも追加でき、初期残高は必ず5,000ポイントとします。
 デモセッションは2時間有効で、外部認証や実在する認証情報は使用しません。
-出品・購入相談・プロフィールはブラウザの `localStorage`、仮想セッションはタブ単位の `sessionStorage` に保存され、別ブラウザや別端末とは共有されません。
+ドメインデータはbackendのSQLite `:memory:`に保存し、同じプロセスへ接続するブラウザ間で共有します。ブラウザには署名付きtoken、有効期限、一時client IDだけを `sessionStorage` へ保存します。
+
+サイト起動時にfrontendが `POST /api/demo/open` を呼び、30秒ごとにheartbeatを送ります。最後のブラウザ終了時にseed状態へ戻し、終了通知が届かない場合も90秒後に戻します。サーバー停止・Render停止・再起動でも変更データは全て失われます。
 
 ### frontend
+
+通常の機能確認では単独起動せず、ルートの `npm run dev` を使用します。静的配信だけを確認する場合:
 
 ```bash
 cd frontend
@@ -201,27 +225,16 @@ http://127.0.0.1:4173
 ```
 
 `npm run dev` は `node server.mjs` を実行します。
-現在は静的ファイルのみのため、本番ビルド手順はありません。
-
-将来 Next.js に移行した場合の想定:
-
-```bash
-cd frontend
-npm install
-npm run dev
-npm run build
-npm run start
-```
+この場合もAPI操作には4000番でbackendが必要です。`npm run build` はJavaScript構文を検査します。
 
 ### backend
 
-backendはMySQL接続を必要とします。依存関係を導入し、migrationを適用してから起動します。
+無料公開用の一時DBモード:
 
 ```bash
 cd backend
 npm ci
-npm run prisma:deploy
-npm run dev
+npm run dev:ephemeral
 ```
 
 本番ビルド:
@@ -234,7 +247,7 @@ npm start
 
 ### database / Prisma
 
-`prisma migrate dev`、`prisma migrate deploy`、`prisma db seed`、backend起動などMySQLへ接続する操作を行う前に、次の内容をユーザーへ提示して明示承諾を得てください。
+無料公開ではMySQLを使いません。`prisma migrate dev`、`prisma migrate deploy`、`prisma db seed`、`DEMO_STORAGE_MODE=mysql`でのbackend起動など、任意のローカルMySQL検証を行う前に、次の内容をユーザーへ提示して明示承諾を得てください。
 
 - `DATABASE_URL` からパスワードを除いた接続先ホスト・ポート・DB名
 - 適用するmigration名と作成・変更するテーブル
@@ -303,13 +316,12 @@ npm test
 - メール、電話番号、住所、学生証番号、本人確認書類は架空データとして保存され、実在データは保存されないこと。
 - 架空個人情報も、実個人情報と同等に認可、暗号化、マスキング、監査ログ、保存期間、削除手段の対象になること。
 
-現在の最小 SPA では、追加デモアカウント、教科書データ、購入相談データ、コメント、仮想ポイント残高、画面内通知を `localStorage`、仮想セッションを `sessionStorage` に保存します。
-`frontend/src/apiClient.js` は実装済みExpress APIに差し替える前提の境界ですが、現時点ではまだ接続していません。
+現在のSPAでは、追加デモアカウント、教科書、購入相談、コメント、仮想ポイント残高、画面内通知をExpress API経由で一時SQLiteへ保存します。`frontend/src/apiClient.js` のドメイン操作は必ず `fetch` を使い、ブラウザストレージをデータベース代わりにしないでください。
 所有権と取引当事者の判定には編集可能なニックネームではなくデモユーザー ID を使い、自分の出品物への購入相談を拒否します。
 デモアカウントに購入者・出品者の固定ロールは付けず、認証済みの全アカウントが出品と他ユーザー出品の購入相談を行えます。未認証操作は `frontend/src/apiClient.js` の更新関数で拒否し、自分の出品は一覧で青枠とラベルを表示します。
 購入相談は `PENDING` で作成し、購入者と出品者の双方承諾時だけ `COMPLETED` にして Book を `SOLD` にします。成立時に移動するのは換金不可・現金価値なしのデモ用仮想ポイントだけで、双方へ画面内通知を作成します。
 片側承諾時は残高を更新せず、第三者承諾、重複承諾、残高不足を API 境界で拒否してください。カード・銀行口座・住所・電話番号などの支払い情報入力欄や外部決済 API は追加しないでください。
-`localStorage` 版は複数キーの書き込み失敗時にベストエフォートでロールバックしますが、同時実行制御を保証しません。backend版は、取引、Book、購入者・出品者残高、通知を単一のDBトランザクションで更新します。この保証を維持してください。
+一時SQLite版と任意のMySQL版は、取引、Book、購入者・出品者残高、通知を単一のDBトランザクションで更新します。この保証を維持してください。
 追加アカウントはニックネーム、学部、学科・専攻、学年だけを受け取り、コード側でデモ専用IDと5,000ポイントを付与します。実在メール、電話番号、住所、パスワード、本人確認情報を追加フォームへ含めないでください。
 簡易コメントは教科書へ紐づけ、投稿は認証必須、本文は1〜240文字とします。UIでは `textContent` 相当の安全な描画を使い、外部メールやSMSではなく関係者向けの画面内通知だけを作成してください。
 
@@ -329,12 +341,15 @@ README にある重要テストケース:
 
 ### frontend
 
-- `NEXT_PUBLIC_API_BASE_URL`
+- 通常は環境変数不要。同一オリジンの `/api` を使用する。
 
 ### backend
 
 - `NODE_ENV`
 - `PORT`
+- `HOST`
+- `DEMO_STORAGE_MODE`（公開時は `ephemeral`）
+- `SERVE_FRONTEND`（公開時は `true`）
 - `DATABASE_URL`
 - `FRONTEND_ORIGIN`
 - `SESSION_SECRET`
@@ -364,7 +379,7 @@ README にある重要テストケース:
 - README の 3 層構造を守る。
 - フロントエンドは画面表示と API 呼び出しに集中させる。
 - バックエンドは認証、認可、バリデーション、取引ロジック、DB 更新を担当する。
-- DB 操作は Prisma 経由で行い、文字列連結による SQL 生成を避ける。
+- DB 操作はPrismaまたは `EphemeralStore` のparameter binding済みprepared statement経由で行い、ユーザー入力をSQL文字列へ連結しない。
 - ユーザー入力を HTML として直接描画しない。
 - 本番エラーでは内部スタックトレースを返さない。
 - 実決済・カード登録・銀行口座登録・実在個人情報保存につながる UI、API、DB カラムを追加しない。
@@ -411,22 +426,19 @@ refactor: transactionServiceの責務を整理
 
 ## デプロイ方針
 
-Render.com へのデプロイを想定する。
+Render.comのFree Web Service 1個へのデプロイを想定し、ルートの `render.yaml` を使用する。
 
-### frontend
-
-- Build Command: `npm install && npm run build`
-- Start Command: `npm run start`
-
-### backend
-
-- Build Command: `npm install && npx prisma generate && npm run build`
+- Build Command: `npm ci --prefix backend && npm run build`
 - Start Command: `npm start`
+- Health Check Path: `/api/health`
+- `DEMO_STORAGE_MODE=ephemeral`
+- `SERVE_FRONTEND=true`
 
-### MySQL
+ExpressがfrontendとAPIを同一オリジンで配信します。別frontendサービス、MySQL、Persistent Disk、外部DBを作成しないでください。
 
-- Render の MySQL Template または Web Service + Persistent Disk を想定する。
-- バックアップ方法は未決定のため、実装時に運用方針を決める。
+有料プラン、カード登録、従量課金、Persistent Diskが必要になった場合はデプロイを中止してユーザーへ伝えてください。Free Web Serviceの停止・再起動、最後のブラウザ終了、90秒heartbeatなしで一時データを破棄する仕様を維持します。
+
+Renderへ実際にデプロイする操作は、無料プランであることを確認し、ユーザーの明示指示を受けてから行ってください。
 
 ## 未決定事項
 
@@ -434,7 +446,6 @@ README 上で未決定とされている内容は、実装前に決定または�
 
 - 画像ファイルをサンプル画像だけにするか、デモ用アップロードも許可するか。
 - 授業マスタを作るか、Book の文字列項目で始めるか。
-- MySQL を Render 上で運用する際のデモデータリセット・バックアップ方法。
 - 管理者機能を MVP に含めるか。
 - 画面内デモ通知の保存期間をどうするか。
 

@@ -1,7 +1,9 @@
 import { Prisma } from "@prisma/client";
+import { env } from "../config/env.js";
 import { nextApprovalState } from "../domain/transactionPolicy.js";
 import { AppError } from "../errors/AppError.js";
 import { prisma } from "../lib/prisma.js";
+import { ephemeralStore } from "../lib/ephemeralStore.js";
 import {
   allowOnly,
   inputRecord,
@@ -22,6 +24,10 @@ export async function requestTransaction(currentUserId: number, input: unknown) 
   const offeredPrice = requiredInteger(body, "offeredPrice", 0);
   const message = optionalString(body, "message", 2000);
   await getOwnProfile(currentUserId);
+
+  if (env.storageMode === "ephemeral") {
+    return ephemeralStore.requestTransaction(currentUserId, bookId, offeredPrice, message);
+  }
 
   return prisma.$transaction(
     async (tx) => {
@@ -66,7 +72,10 @@ export async function requestTransaction(currentUserId: number, input: unknown) 
 }
 
 export async function getTransaction(currentUserId: number, id: number) {
-  const transaction = await findTransactionById(id);
+  const transaction =
+    env.storageMode === "ephemeral"
+      ? ephemeralStore.getTransaction(id)
+      : await findTransactionById(id);
   if (!transaction) {
     throw new AppError(404, "TRANSACTION_NOT_FOUND", "取引が見つかりません");
   }
@@ -81,6 +90,10 @@ export async function approveTransaction(currentUserId: number, id: number, inpu
   allowOnly(body, ["action"]);
   if (requiredString(body, "action", 20) !== "APPROVE") {
     throw new AppError(400, "VALIDATION_ERROR", "actionはAPPROVEを指定してください");
+  }
+
+  if (env.storageMode === "ephemeral") {
+    return ephemeralStore.approveTransaction(currentUserId, id);
   }
 
   return prisma.$transaction(
@@ -174,8 +187,24 @@ export async function approveTransaction(currentUserId: number, id: number, inpu
 
 export async function listOwnNotifications(currentUserId: number) {
   await getOwnProfile(currentUserId);
+  if (env.storageMode === "ephemeral") {
+    return ephemeralStore.listNotifications(currentUserId);
+  }
   return prisma.notification.findMany({
     where: { userId: currentUserId },
+    orderBy: { createdAt: "desc" },
+    take: 100,
+  });
+}
+
+export async function listOwnTransactions(currentUserId: number) {
+  await getOwnProfile(currentUserId);
+  if (env.storageMode === "ephemeral") {
+    return ephemeralStore.listTransactions(currentUserId);
+  }
+  return prisma.transaction.findMany({
+    where: { OR: [{ buyerId: currentUserId }, { sellerId: currentUserId }] },
+    include: transactionInclude,
     orderBy: { createdAt: "desc" },
     take: 100,
   });

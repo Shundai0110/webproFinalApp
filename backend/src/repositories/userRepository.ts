@@ -18,6 +18,10 @@ export function findUserById(id: number) {
   return prisma.user.findUnique({ where: { id }, select: publicUserSelect });
 }
 
+export function findDemoUsers() {
+  return prisma.user.findMany({ select: publicUserSelect, orderBy: { id: "asc" }, take: 20 });
+}
+
 export function updateUser(
   id: number,
   data: Prisma.UserUpdateInput,

@@ -5,8 +5,13 @@ import { currentSession } from "../middlewares/authMiddleware.js";
 import {
   approveTransaction,
   getTransaction,
+  listOwnTransactions,
   requestTransaction,
 } from "../services/transactionService.js";
+
+export const index: RequestHandler = async (_req, res) => {
+  sendSuccess(res, await listOwnTransactions(currentSession(res.locals).userId));
+};
 
 export const create: RequestHandler = async (req, res) => {
   const transaction = await requestTransaction(currentSession(res.locals).userId, req.body);

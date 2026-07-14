@@ -5,6 +5,7 @@ import {
   createListing,
   endDemoSession,
   getSession,
+  initializeApi,
   listBooks,
   listComments,
   listDemoUsers,
@@ -220,9 +221,9 @@ function renderTransactions(session) {
         : isBuyer
           ? "購入・支払いを承諾"
           : "販売を承諾";
-      action.addEventListener("click", () => {
+      action.addEventListener("click", async () => {
         try {
-          const updated = approveTransaction(transaction.id);
+          const updated = await approveTransaction(transaction.id);
           showToast(
             updated.status === "COMPLETED"
               ? "双方が承諾し、仮想ポイント取引が完了しました"
@@ -357,10 +358,10 @@ function createCommentsPanel(book, session) {
   safetyNote.className = "comment-safety-note";
   safetyNote.textContent = "実在する連絡先や個人情報は入力しないでください。";
   form.append(textarea, safetyNote, action);
-  form.addEventListener("submit", (event) => {
+  form.addEventListener("submit", async (event) => {
     event.preventDefault();
     try {
-      createComment(book.id, { body: textarea.value });
+      await createComment(book.id, { body: textarea.value });
       showToast("コメントを投稿しました");
       render();
     } catch (error) {
@@ -507,9 +508,9 @@ function renderDetail(book, session) {
     purchaseButton.textContent = book.status === "AVAILABLE" ? "購入相談を開始" : "購入相談不可";
   }
 
-  purchaseButton.addEventListener("click", () => {
+  purchaseButton.addEventListener("click", async () => {
     try {
-      const transaction = requestPurchase(book.id);
+      const transaction = await requestPurchase(book.id);
       state.activeBookId = transaction.bookId;
       showToast("購入相談を作成しました");
       render();
@@ -541,13 +542,13 @@ function render() {
 }
 
 function bindEvents() {
-  refs.accountForm.addEventListener("submit", (event) => {
+  refs.accountForm.addEventListener("submit", async (event) => {
     event.preventDefault();
     try {
-      const account = createDemoAccount(
+      const account = await createDemoAccount(
         Object.fromEntries(new FormData(refs.accountForm).entries()),
       );
-      const session = startDemoSession(account.id);
+      const session = getSession();
       refs.accountForm.reset();
       syncListingFaculty(session);
       showToast(`${session.name} を追加し、5,000 ptで利用を開始しました`);
@@ -557,9 +558,9 @@ function bindEvents() {
     }
   });
 
-  refs.startSession.addEventListener("click", () => {
+  refs.startSession.addEventListener("click", async () => {
     try {
-      const session = startDemoSession(refs.demoUserSelect.value);
+      const session = await startDemoSession(refs.demoUserSelect.value);
       syncListingFaculty(session);
       showToast(`${session.name} として利用を開始しました`);
       render();
@@ -574,10 +575,12 @@ function bindEvents() {
     render();
   });
 
-  refs.profileForm.addEventListener("submit", (event) => {
+  refs.profileForm.addEventListener("submit", async (event) => {
     event.preventDefault();
     try {
-      const profile = updateProfile(Object.fromEntries(new FormData(refs.profileForm).entries()));
+      const profile = await updateProfile(
+        Object.fromEntries(new FormData(refs.profileForm).entries()),
+      );
       syncListingFaculty(profile);
       showToast("プロフィールを保存しました");
       render();
@@ -604,10 +607,12 @@ function bindEvents() {
     render();
   });
 
-  refs.listingForm.addEventListener("submit", (event) => {
+  refs.listingForm.addEventListener("submit", async (event) => {
     event.preventDefault();
     try {
-      const book = createListing(Object.fromEntries(new FormData(refs.listingForm).entries()));
+      const book = await createListing(
+        Object.fromEntries(new FormData(refs.listingForm).entries()),
+      );
       refs.listingForm.reset();
       syncListingFaculty(getSession());
       state.activeBookId = book.id;
@@ -620,17 +625,31 @@ function bindEvents() {
     }
   });
 
-  refs.resetDemo.addEventListener("click", () => {
-    resetDemoData();
-    state.activeBookId = "";
-    state.filters = { search: "", faculty: "", status: "" };
-    refs.searchInput.value = "";
-    refs.statusFilter.value = "";
-    refs.listingForm.reset();
-    showToast("アカウントを含むデモデータを初期化しました");
-    render();
+  refs.resetDemo.addEventListener("click", async () => {
+    try {
+      await resetDemoData();
+      state.activeBookId = "";
+      state.filters = { search: "", faculty: "", status: "" };
+      refs.searchInput.value = "";
+      refs.statusFilter.value = "";
+      refs.listingForm.reset();
+      showToast("一時データベースを初期化しました");
+      render();
+    } catch (error) {
+      showToast(error.message);
+    }
   });
 }
 
 bindEvents();
-render();
+
+async function initialize() {
+  try {
+    await initializeApi();
+    render();
+  } catch (error) {
+    showToast(error.message);
+  }
+}
+
+initialize();

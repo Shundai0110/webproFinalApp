@@ -26,19 +26,22 @@ test("seed data contains marketplace states", async () => {
   assert.match(data, /REFERENCE/);
 });
 
-test("api client exposes future backend seams", async () => {
+test("api client exposes the backend API boundary", async () => {
   const apiClient = await readFile(join(root, "src", "apiClient.js"), "utf8");
   assert.match(apiClient, /export function getSession/);
   assert.match(apiClient, /export function listBooks/);
-  assert.match(apiClient, /export function createListing/);
-  assert.match(apiClient, /export function requestPurchase/);
-  assert.match(apiClient, /export function approveTransaction/);
+  assert.match(apiClient, /export async function initializeApi/);
+  assert.match(apiClient, /export async function createListing/);
+  assert.match(apiClient, /export async function requestPurchase/);
+  assert.match(apiClient, /export async function approveTransaction/);
   assert.match(apiClient, /export function listNotifications/);
-  assert.match(apiClient, /export function startDemoSession/);
-  assert.match(apiClient, /export function updateProfile/);
-  assert.match(apiClient, /export function createDemoAccount/);
-  assert.match(apiClient, /export function createComment/);
+  assert.match(apiClient, /export async function startDemoSession/);
+  assert.match(apiClient, /export async function updateProfile/);
+  assert.match(apiClient, /export async function createDemoAccount/);
+  assert.match(apiClient, /export async function createComment/);
   assert.match(apiClient, /export function listComments/);
+  assert.match(apiClient, /fetch\(`\$\{API_BASE\}/);
+  assert.doesNotMatch(apiClient, /localStorage/);
 });
 
 test("own listings have a visible marker", async () => {

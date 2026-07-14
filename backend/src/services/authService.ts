@@ -16,8 +16,14 @@ import {
   requiredInteger,
   requiredString,
 } from "../lib/validation.js";
-import { findUserById, publicUserSelect, updateUser } from "../repositories/userRepository.js";
 import { env } from "../config/env.js";
+import { ephemeralStore } from "../lib/ephemeralStore.js";
+import {
+  findDemoUsers,
+  findUserById,
+  publicUserSelect,
+  updateUser,
+} from "../repositories/userRepository.js";
 
 const ACCOUNT_FIELDS = ["nickname", "faculty", "department", "year", "iconUrl"] as const;
 
@@ -58,6 +64,17 @@ export async function registerDemoAccount(input: unknown) {
   }
   const profile = readProfile(input, false);
 
+  if (env.storageMode === "ephemeral") {
+    const user = ephemeralStore.createUser({
+      nickname: profile.nickname!,
+      faculty: profile.faculty!,
+      department: profile.department!,
+      year: profile.year!,
+      iconUrl: profile.iconUrl,
+    });
+    return { user, session: { type: "Bearer", ...issueDemoSession(user.id) } };
+  }
+
   const user = await prisma.$transaction(
     async (tx) => {
       const count = await tx.user.count();
@@ -86,7 +103,10 @@ export async function registerDemoAccount(input: unknown) {
 }
 
 export async function getOwnProfile(userId: number) {
-  const user = await findUserById(userId);
+  const user =
+    env.storageMode === "ephemeral"
+      ? ephemeralStore.getUser(userId)
+      : await findUserById(userId);
   if (!user) throw new AppError(401, "UNAUTHENTICATED", "デモアカウントが見つかりません");
   return user;
 }
@@ -94,5 +114,24 @@ export async function getOwnProfile(userId: number) {
 export async function updateOwnProfile(userId: number, input: unknown) {
   await getOwnProfile(userId);
   const profile = readProfile(input, true);
+  if (env.storageMode === "ephemeral") return ephemeralStore.updateUser(userId, profile);
   return updateUser(userId, profile);
+}
+
+export async function listDemoAccounts() {
+  if (!env.demoMode) {
+    throw new AppError(503, "DEMO_MODE_DISABLED", "デモアカウント選択は無効です");
+  }
+  return env.storageMode === "ephemeral" ? ephemeralStore.listUsers() : findDemoUsers();
+}
+
+export async function startDemoSession(input: unknown) {
+  if (!env.demoMode) {
+    throw new AppError(503, "DEMO_MODE_DISABLED", "デモアカウント選択は無効です");
+  }
+  const body = inputRecord(input);
+  allowOnly(body, ["userId"]);
+  const userId = requiredInteger(body, "userId", 1);
+  const user = await getOwnProfile(userId);
+  return { user, session: { type: "Bearer", ...issueDemoSession(userId) } };
 }

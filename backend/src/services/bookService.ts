@@ -1,4 +1,5 @@
 import type { BookStatus, MaterialType, Prisma } from "@prisma/client";
+import { env } from "../config/env.js";
 import { BOOK_STATUSES, MATERIAL_TYPES } from "../domain/constants.js";
 import { AppError } from "../errors/AppError.js";
 import {
@@ -20,6 +21,11 @@ import {
 } from "../repositories/bookRepository.js";
 import { getOwnProfile } from "./authService.js";
 import { calculateRelatedScore } from "./rankingService.js";
+import {
+  ephemeralStore,
+  type EphemeralBookInput,
+  type EphemeralBookQuery,
+} from "../lib/ephemeralStore.js";
 
 const BOOK_FIELDS = [
   "title",
@@ -117,6 +123,21 @@ export async function listBooks(userId: number, rawQuery: unknown) {
   const q = queryString(query, "q", 255);
   const status = optionalEnum(query, "status", BOOK_STATUSES);
   const materialType = optionalEnum(query, "materialType", MATERIAL_TYPES);
+  if (env.storageMode === "ephemeral") {
+    const books = ephemeralStore.listBooks({
+      q,
+      status,
+      materialType,
+      faculty: queryString(query, "faculty", 100),
+      department: queryString(query, "department", 100),
+      year: queryInteger(query, "year", 1, 6),
+      usedYear: queryInteger(query, "usedYear", 2000, 2100),
+      category: queryString(query, "category", 100),
+    } satisfies EphemeralBookQuery);
+    return books
+      .map((book) => ({ ...book, relatedScore: calculateRelatedScore(book, user, q) }))
+      .sort((left, right) => right.relatedScore - left.relatedScore || right.usedYear - left.usedYear);
+  }
   const where: Prisma.BookWhereInput = {
     status: status ?? { not: "CANCELLED" },
     usedFaculty: queryString(query, "faculty", 100),
@@ -147,7 +168,8 @@ export async function listBooks(userId: number, rawQuery: unknown) {
 }
 
 export async function getBook(id: number) {
-  const book = await findBookById(id);
+  const book =
+    env.storageMode === "ephemeral" ? ephemeralStore.getBook(id) : await findBookById(id);
   if (!book) throw new AppError(404, "BOOK_NOT_FOUND", "教科書が見つかりません");
   return book;
 }
@@ -155,6 +177,9 @@ export async function getBook(id: number) {
 export async function addBook(userId: number, input: unknown) {
   await getOwnProfile(userId);
   const data = readBookInput(input, false);
+  if (env.storageMode === "ephemeral") {
+    return ephemeralStore.createBook(userId, data as EphemeralBookInput);
+  }
   return createBook({ ...data, sellerId: userId, status: "AVAILABLE" });
 }
 
@@ -167,6 +192,9 @@ export async function editBook(userId: number, id: number, input: unknown) {
     throw new AppError(409, "BOOK_NOT_EDITABLE", "出品中の教科書だけを更新できます");
   }
   const data = readBookInput(input, true);
+  if (env.storageMode === "ephemeral") {
+    return ephemeralStore.updateBook(id, data as EphemeralBookInput);
+  }
   return updateBook(id, data);
 }
 
@@ -177,6 +205,9 @@ export async function cancelBook(userId: number, id: number) {
   }
   if (book.status !== "AVAILABLE") {
     throw new AppError(409, "BOOK_NOT_CANCELLABLE", "出品中の教科書だけを取り消せます");
+  }
+  if (env.storageMode === "ephemeral") {
+    return ephemeralStore.updateBook(id, { status: "CANCELLED" });
   }
   return updateBook(id, { status: "CANCELLED" });
 }

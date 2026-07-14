@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "node server.mjs",
     "start": "node server.mjs",
+    "build": "node --check src/apiClient.js && node --check src/app.js && node --check server.mjs",
     "test": "node --test tests/*.test.mjs"
   }
 }

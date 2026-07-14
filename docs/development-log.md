@@ -443,3 +443,48 @@
 ### 次にやること
 - 確認終了後、Prisma Studioは起動したターミナルで `Ctrl+C` を押して停止する。
 - MySQLの起動・停止手順をnpmスクリプト化する場合は別途実装する。
+
+## 2026-07-14 22:22
+## 未コミット, review: 現状のデプロイ可否を評価
+### 依頼内容
+- 過去のReviewer指摘に対する現状を確認し、暗号化、マスキング、監査ログ、CSRF対策以外を実装した状態でデプロイすべきか判断する。
+
+### 実施内容
+- 変更したファイル: `docs/agent-memory/reviewer.md`, `docs/development-log.md`（評価記録のみ）
+- README、AGENTS、Reviewerメモリ、作業ログ、git履歴、frontend/backend/database実装、テストを独立に確認した。製品コードと設計書は変更していない。
+- frontend/API未接続、認証セッション再開不能、comments API未実装、公開時の濫用・個人情報混入対策不足、Render手順不成立、無料MySQL永続化不可をデプロイ阻害事項として整理した。
+- Render公式資料で、無料Web ServiceはPersistent Diskを使用できず、MySQL構成にはPersistent Diskが必要なことを確認した。
+
+### 確認内容
+- 実行したコマンド: `git status`, `git log`, `git diff`, `rg`, `sed`, `nl`, `npm test`, `npm --prefix backend audit --omit=dev --json`, `npm --prefix frontend run build`, `git diff --check`
+- テスト結果: frontend 2 test files、backend 3 test files、Prisma Client生成、TypeScript buildが成功。本番依存169件の既知脆弱性は0件。frontend buildはscript未定義で失敗した。
+- 未確認事項: 外部環境への実デプロイ、実ブラウザ2利用者のAPI/DB E2E、負荷試験、バックアップ復旧。不正URL試験用サーバー起動は権限が承認されず動的再現していない。
+
+### 次にやること
+- frontendをExpress APIへ接続し、アカウント選択・再セッション発行・コメントを含む一連の共有動作を実装する。
+- 無料かつ課金・カード登録のない永続DB構成を決定できなければ、RenderへのMySQLフルスタック公開は行わず、ローカルまたは静的単体デモに限定する。
+- Render設定、公開branch、rate limit、ページング、DB health、エラーログ、バックアップ・リセット、API/DB E2Eをデプロイ前に整備する。
+
+## 2026-07-14 23:12
+## 未コミット（基点 451f72b）, feat: frontend API接続と無料公開用一時SQLiteを追加
+### 依頼内容
+- frontendをbackendへ接続し、複数利用者でデータを共有できるようにする。
+- Render無料プランでMySQL/Persistent Diskを使わず、サイト利用中だけ動作して終了後にリセットされるデモDBを実装する。
+
+### 実施内容
+- 変更したファイル: `frontend/src/apiClient.js`, `frontend/src/app.js`, `frontend/server.mjs`, `frontend/package.json`, `frontend/tests/`, `backend/src/` のauth・books・transactions・comments・demo lifecycle・一時DB・static配信関連, `backend/tests/`, `backend/package.json`, `backend/.env.example`, `package.json`, `render.yaml`, `README.md`, `AGENTS.md`, `docs/agent-memory/maker.md`, `docs/development-log.md`
+- frontendのlocalStorage処理をfetch/Bearer APIへ置き換え、アカウント、プロフィール、Books、Transactions、Comments、NotificationsをExpressへ接続した。ブラウザ保存はsession token、有効期限、client IDだけに限定した。
+- Node.js組み込みSQLite `:memory:`へ5テーブル、外部キー、CHECK制約、index、架空seedを実装し、自己購入拒否、双方承諾、ポイント移動、SOLD更新、通知を単一DBトランザクションで処理した。
+- open/heartbeat/close lifecycleを追加し、最終client終了、90秒heartbeatなし、サービス停止時に変更データを破棄するようにした。共有中の手動resetを拒否し、同時client上限を200件にした。
+- ExpressからfrontendとAPIを同一オリジン配信し、Render Free Web Service 1個・一時DB・Node 24.14.1固定の `render.yaml` を追加した。公開構成にMySQL、Persistent Disk、外部DB、実決済、カード登録、課金設定は含めていない。
+- 開発時のポート使用中エラーでは4001番以降へ再試行し、本番では指定PORTのbind失敗を異常終了するようにした。
+
+### 確認内容
+- 実行したコマンド: `npm test`, `npm run build`, `npm run dev`, `node --test`, `node --check`, `curl`, `git diff --check`, `rg`, `sed`, `git status`
+- テスト結果: frontend 2 test files、backend 4 test filesが全成功。Prisma Client生成、TypeScript build、frontend構文検査も成功。ローカルHTTPで認証付き出品、同一オリジン配信、一時DBの `books: 5` から最終client終了後 `books: 4` へのseed復元を確認した。4000番使用中に `npm run dev` が4001番へ切り替わり、`/api/health` が一時DB統計付きで200を返した。
+- 未確認事項: Renderへの実デプロイ、Render上の停止・再起動、実ブラウザ2利用者の目視操作、負荷・長時間通信断試験。`render.yaml` は無料構成を目視確認したが、ローカルにYAML parserがなく機械的構文検査は未実施。
+
+### 次にやること
+- ユーザーの明示指示がある場合だけ、課金・カード登録がないことを確認してRender Free Blueprintへデプロイする。
+- デプロイ後に2ブラウザで共有、最終close/90秒失効、サービス停止後のseed復元を確認する。
+- 公開前の追加課題としてrate limit、ページング、操作ログ方針をReviewerに再評価してもらう。

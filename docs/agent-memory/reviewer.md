@@ -56,3 +56,25 @@ Reviewer は Maker のメモリや未公開の実装意図を参照せず、確�
 - frontend HTTP: `http://127.0.0.1:4173` が `200 OK`。
 - 関数検証: 自己購入リクエストが作成され、Book が `NEGOTIATING`、Transaction が `PENDING` になることを再現。
 - backend は `node_modules` と `dist` がなく、実サーバー起動・ビルド・health API は未確認。
+
+### 2026-07-14 デプロイ可否の再評価
+
+- 評価対象: commit `451f72b` (`features/database`)、評価開始時のworktreeはclean。Makerメモリは参照していない。
+- 判定: 現状のフルスタックは外部デプロイ不可。ローカル実演に限定する。
+- 改善確認: backendに署名付きBearerセッション、所有者・取引当事者の認可、入力許可リスト、自己購入拒否、双方承諾、ポイント・Book・通知の単一DBトランザクション、MySQL migration/seedがある。実決済入力・外部決済接続は見つからない。
+
+#### デプロイ阻害事項
+
+1. 高: frontendは`fetch`やAPI URLを持たず、`localStorage`/`sessionStorage`だけを使用する。Express/MySQLの認証・認可・整合性保証は実画面から一切使われず、利用者間でデータ共有できない。
+2. 高: backend認証入口はアカウント新規作成だけで、既存デモユーザー選択・再ログイン・セッション再発行がない。2時間失効後は復帰できず、全体20件上限はseed 5件を含むため公開利用者が枠を埋められる。
+3. 高: README/AGENTSのfrontend Build Commandは実在しない`npm run build`で失敗する。静的サーバーは既定で`127.0.0.1`へbindするが、Render Web Serviceは`0.0.0.0`を要求する。Render設定ファイルもなく、公開対象の`main`はHEADより10 commit古い。
+4. 高: Renderの無料Web ServiceはPersistent Diskを使用できず、READMEが想定するMySQL + Persistent Diskは有料構成になる。無料プラン限定・有料禁止ルール下では、現在のRender/MySQL構成を採用できない。
+5. 中: READMEにあるcomments APIとCommentモデルはbackendにない。自由記述のnickname、Book description、Transaction messageへ実在個人情報を入力・平文保存でき、項目名allowlistだけでは実データ混入を防げない。
+6. 中: rate limit、ページング、DB接続を含むhealth check、エラーログ、バックアップ、デモデータリセット、API/DB E2E・デプロイ後テストがない。公開時の枯渇・障害検知・復旧を評価できない。
+
+#### 検証結果
+
+- `npm test`: frontend 2 test files、backend 3 test files、Prisma Client生成、TypeScript buildが成功。
+- `npm audit --omit=dev --json`: 本番依存169件、既知脆弱性0件。
+- `npm --prefix frontend run build`: `Missing script: build`で失敗。
+- 不正URLに対する静的サーバー停止可能性の動的再現は、隔離ポート起動の権限が承認されず未確認。コード上は`decodeURIComponent`が例外処理外にある。
