@@ -166,6 +166,7 @@ project-root/
 ### database
 
 - `User`、`Book`、`Transaction`、`Notification` のPrismaモデルと初期migrationを実装済み。
+- `backend/prisma/seed.ts` に架空ユーザー・Book・Transaction・通知の冪等seedを実装済み。
 - Prisma schema は `backend/prisma/schema.prisma` に置く。
 - MySQL を前提にする。
 - `users`、`books`、`transactions` は snake_case 複数形の DB テーブルとして扱う。
@@ -232,6 +233,15 @@ npm start
 ```
 
 ### database / Prisma
+
+`prisma migrate dev`、`prisma migrate deploy`、`prisma db seed`、backend起動などMySQLへ接続する操作を行う前に、次の内容をユーザーへ提示して明示承諾を得てください。
+
+- `DATABASE_URL` からパスワードを除いた接続先ホスト・ポート・DB名
+- 適用するmigration名と作成・変更するテーブル
+- seedで作成・更新するデータ件数と、既存データへの影響
+- 外部サービスの場合は無料プランであり、課金・カード登録が発生しないこと
+
+承諾前はMySQLへ接続しないでください。`prisma generate`、TypeScript build、DB非接続テストは承諾なしで実行できます。
 
 開発 DB へのマイグレーション:
 

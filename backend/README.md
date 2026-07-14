@@ -18,9 +18,12 @@ Express 5 / TypeScript / Prisma 7 / MySQLによるデモAPIです。実決済、
 
 ## セットアップ
 
+`prisma:deploy`、`prisma:seed`、API起動は `DATABASE_URL` のMySQLへ接続します。実行前に、接続先ホスト・DB名、適用するmigration、seedの件数と更新内容を提示し、ユーザーの明示承諾を得てください。
+
 ```bash
 npm ci
 npm run prisma:deploy
+npm run prisma:seed
 npm run dev
 ```
 
@@ -32,12 +35,17 @@ npm run dev
 npm run prisma:generate
 npm run prisma:migrate
 npm run prisma:deploy
+npm run prisma:seed
 npm run build
 npm test
 npm start
 ```
 
 `npm test` はPrisma Client生成、TypeScriptビルド、署名セッション、認証境界、双方承諾ポリシー、関連度、構造テストを実行します。DB依存の完全なAPI確認には、migration適用済みのMySQLが必要です。
+
+## Seed
+
+`backend/prisma/seed.ts` が正本です。5架空ユーザー、4架空Book、交渉中と成立済みのTransaction各1件、成立通知2件を冪等に作成します。既存ユーザーを再利用する場合、プロフィール項目は更新しますが、取引後の `pointBalance` は巻き戻しません。`database/seed.sql` は手動確認用の同等SQLです。
 
 ## 取引整合性
 

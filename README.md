@@ -1078,8 +1078,7 @@ enum MaterialType {
 
 ### 10.6 拡張用テーブル候補
 
-MVPはUser、Book、Transactionの3テーブルで開始する。  
-ただし、機能拡張時は以下のテーブルを追加できる設計にしておく。
+現在はUser、Book、Transactionと成立通知用Notificationを実装している。以下は今後の拡張候補とする。
 
 | テーブル名 | 目的 | 追加する理由 |
 |---|---|---|
@@ -1088,7 +1087,10 @@ MVPはUser、Book、Transactionの3テーブルで開始する。
 | BookImage | 複数枚の写真投稿 | 表紙、書き込み、汚れなどを複数画像で見せるため |
 | Category | カテゴリ管理 | 語学、専門科目、一般教養などをマスタ化するため |
 | Review | 取引後評価 | 安心して取引できるユーザー評価を作るため |
-| Notification | 通知管理 | 承諾、コメント、取引成立を通知するため |
+
+### 10.7 デモseed
+
+`backend/prisma/seed.ts` は5架空ユーザー、4架空Book、交渉中と成立済みのTransaction各1件、成立通知2件を冪等に作成する。実在メール、電話番号、住所、学生証・本人確認情報、認証情報、決済情報は含めない。既存のseedユーザーがいる場合はプロフィールだけを同期し、取引後の仮想ポイント残高は巻き戻さない。手動確認用の同等SQLは `database/seed.sql` に置く。
 
 ---
 
@@ -1623,10 +1625,13 @@ backend の開発サーバーを単独で起動する場合は、先に `backend
 
 backendは `DATABASE_URL` が指すMySQLへmigrationを適用してから起動する。
 
+MySQLへ接続する `prisma:deploy`、`prisma:seed`、backend起動は、接続先ホスト・ポート・DB名、適用migration、seed件数と既存データへの影響を提示し、ユーザーの明示承諾を得てから実行する。承諾前はMySQLへ接続しない。
+
 ```bash
 cd backend
 npm ci
 npm run prisma:deploy
+npm run prisma:seed
 npm run dev
 ```
 

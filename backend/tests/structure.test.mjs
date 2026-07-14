@@ -28,6 +28,8 @@ test("backend base files exist", async () => {
     exists("src/middlewares/errorHandler.ts"),
     exists("src/lib/prisma.ts"),
     exists("prisma/schema.prisma"),
+    exists("prisma/seed.ts"),
+    exists("prisma/migrations/20260714122700_init/migration.sql"),
   ]);
 });
 
@@ -39,4 +41,24 @@ test("prisma schema defines the API domain models", async () => {
   assert.match(schema, /^model Transaction/m);
   assert.match(schema, /^model Notification/m);
   assert.match(schema, /pointBalance Int\s+@default\(5000\)/);
+});
+
+test("migration and seed cover the demo marketplace without sensitive fields", async () => {
+  const migration = await readFile(
+    join(root, "prisma", "migrations", "20260714122700_init", "migration.sql"),
+    "utf8",
+  );
+  const seed = await readFile(join(root, "prisma", "seed.ts"), "utf8");
+  const packageJson = JSON.parse(await readFile(join(root, "package.json"), "utf8"));
+
+  assert.match(migration, /CREATE TABLE `users`/);
+  assert.match(migration, /CREATE TABLE `books`/);
+  assert.match(migration, /CREATE TABLE `transactions`/);
+  assert.match(migration, /FOREIGN KEY \(`buyer_id`\)/);
+  assert.match(seed, /demo-user-suzuki/);
+  assert.match(seed, /status: "PENDING"/);
+  assert.match(seed, /status: "COMPLETED"/);
+  assert.match(seed, /upsert/);
+  assert.doesNotMatch(seed, /dummyEmail|cardNumber|bankAccount|password/);
+  assert.equal(packageJson.scripts["prisma:seed"], "prisma db seed");
 });

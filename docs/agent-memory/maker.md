@@ -55,3 +55,6 @@ Reviewer は独立性を保つため、このファイルを参照しません�
 - User、Book、Transaction、NotificationのPrisma 7モデルとMySQL migrationを追加し、Prisma MariaDB driver adapterで接続する。
 - 双方承諾時のTransaction、Book、購入者・出品者残高、通知を直列化可能な単一DBトランザクションで確定する。
 - 一時MySQLで登録、出品、購入相談、片側承諾、双方成立、ポイント移動、成立通知のE2E確認を完了した。
+- `backend/prisma/seed.ts` に5架空ユーザー、4架空Book、交渉中・成立済みTransaction各1件、成立通知2件の冪等seedを追加した。`database/seed.sql` は手動確認用の同等SQLである。
+- seed再実行時は取引後の仮想ポイントを巻き戻さず、実在個人情報・認証情報・決済情報を投入しない。
+- MySQLへ接続するmigration、seed、API起動は、接続先・変更内容・件数・既存データ影響を提示し、ユーザーの明示承諾後だけ実行する。今回のseedは未投入である。

@@ -378,3 +378,26 @@
 - frontendの `apiClient.js` をExpress APIへ接続する。
 - backend版コメントAPIを実装する場合はCommentモデルと関係者通知をDBトランザクションで追加する。
 - Reviewerに認証・認可・取引整合性・入力許可リストを再評価してもらう。
+
+## 2026-07-14 20:22
+## 未コミット, feat: Prisma seedとMySQL接続承諾ルールを追加
+### 依頼内容
+- PrismaのUser・Book・Transactionモデル、MySQL保存、migration、seedを作成する。
+- MySQLと連携する場合は、接続内容と変更内容を提示して承諾を提案する。
+
+### 実施内容
+- 変更したファイル: `README.md`, `AGENTS.md`, `backend/README.md`, `backend/package.json`, `backend/prisma.config.ts`, `backend/prisma/seed.ts`, `backend/tests/structure.test.mjs`, `database/README.md`, `database/notes.md`, `database/seed.sql`, `docs/agent-memory/maker.md`, `docs/development-log.md`
+- 既存のUser・Book・Transaction・NotificationモデルとMySQL初期migrationを確認した。
+- `prisma db seed` 用に、5架空ユーザー、4架空Book、交渉中・成立済みTransaction各1件、成立通知2件を作る冪等なPrisma seedを追加した。
+- seed再実行時はプロフィールを同期する一方、既存ユーザーの取引後ポイント残高を巻き戻さないようにした。
+- 手動確認用に同等のMySQL seed SQLを追加した。実在個人情報、認証情報、カード・銀行・実決済情報は含めていない。
+- MySQL接続前にホスト・ポート・DB名、migration、seed件数、既存データ影響、課金有無を提示し、明示承諾後だけ接続するルールをREADME・AGENTSへ追加した。
+
+### 確認内容
+- 実行したコマンド: `npx tsc --noEmit --ignoreConfig --module NodeNext --moduleResolution NodeNext --target ES2022 --strict --skipLibCheck --types node prisma/seed.ts`, `npx prisma validate`, `npm test`
+- テスト結果: seed.tsの厳格型検査とPrisma schema検証が成功。リポジトリ直下のfrontendテスト2件、backendテスト3件、Prisma Client生成、TypeScriptビルドがすべて成功した。
+- 未確認事項: ユーザー承諾前のためMySQLへ接続せず、migration適用とseed投入は未実行。常設MySQLでの件数・外部キー・再seed動作は未確認。
+
+### 次にやること
+- MySQL接続先と変更内容を提示し、ユーザーの明示承諾を得た場合だけ `npm run prisma:deploy` と `npm run prisma:seed` を実行する。
+- 適用後にUser・Book・Transaction・Notification件数、外部キー、再seed時の冪等性を確認する。
