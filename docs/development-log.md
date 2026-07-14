@@ -575,3 +575,23 @@
 
 ### 次にやること
 - 無料プラン、支払方法未登録、課金設定なしを確認できる場合だけRenderへデプロイし、READMEのデプロイ後確認項目を実施する。
+
+## 2026-07-15 01:25
+## 07e4d32, render.yaml: デプロイができない問題を修正（デプロイ手順の評価記録は未コミット）
+### 依頼内容
+- Reviewerとして、現在のリポジトリをRenderへデプロイする方法を案内する。
+
+### 実施内容
+- 変更したファイル: `docs/agent-memory/reviewer.md`, `docs/development-log.md`（案内・評価記録のみ）
+- 現在のbranch、remote tracking状態、`render.yaml`、READMEとAGENTSのデプロイ設定を確認した。
+- GitHubへの`develop` push、Render New Blueprint、Free構成確認、デプロイ後試験、課金防止条件を手順化した。
+- Render公式資料でBlueprint作成、branch指定、Free Web Serviceの制限と無料枠超過時の扱いを確認した。
+
+### 確認内容
+- 実行したコマンド: `git status`, `git branch`, `git remote`, `git log`, `nl`, `tail`
+- 確認結果: 対象commitは`07e4d32`、現在branchは`develop`、remoteは`origin`、remote tracking branchは`origin/main`だけ。`render.yaml`はFree Web Service 1個を定義している。
+- 未確認事項: GitHubへの`develop` push、Renderアカウントの支払方法・無料枠状態、Blueprint作成、Render実環境でのbuild・起動・health・ブラウザ操作。
+
+### 次にやること
+- ユーザーが`develop`をGitHubへpushし、支払方法未登録・Free構成を確認してBlueprintをDeployする。
+- デプロイ後にREADMEのhealth、2ブラウザ共有、終了時resetを確認する。

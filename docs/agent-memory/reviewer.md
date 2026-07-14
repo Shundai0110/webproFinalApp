@@ -103,3 +103,11 @@ Reviewer は Maker のメモリや未公開の実装意図を参照せず、確�
 - `npm audit --prefix backend --omit=dev`: 既知脆弱性0件。
 - production依存だけの一時環境: 現行相当の`npm ci`後は型定義不足でbuild失敗し、`npm ci --include=dev`後はbuild成功。
 - Render FreeはREADME用途に合うが、課金禁止を守るには支払方法を登録しない。無料枠超過時は停止を許容し、課金で継続しない。
+
+### 2026-07-15 Render Freeデプロイ手順の確認
+
+- 対象はcommit `07e4d32`のローカル`develop`。worktreeは確認開始時cleanで、remote tracking branchは`origin/main`だけだった。
+- デプロイ前に`git push -u origin develop`で現在の`develop`をGitHubへ公開し、RenderのNew Blueprintでbranchを`develop`、Blueprint Pathをルートの`render.yaml`に指定する必要がある。
+- `render.yaml`はFree Web Service 1個、production build、同一オリジン配信、一時SQLite、health check、ランダムSESSION_SECRETを定義している。MySQL、Persistent Disk、外部DB、別frontendサービスは含まない。
+- Renderのreview画面で`plan: free`、サービス1個、Disk・DBなしを確認し、支払方法・有料プラン・課金設定を要求された場合はデプロイを中止する。
+- デプロイ後はトップページ、`/api/health`、2つの独立ブラウザによる共有、全ブラウザ終了後のseed復元を確認する。Free Web Serviceのidle停止・再起動によるデータ消失は仕様どおりである。
