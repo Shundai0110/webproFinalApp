@@ -4,8 +4,8 @@ import { parsePositiveId } from "../lib/validation.js";
 import { currentSession } from "../middlewares/authMiddleware.js";
 import { addComment, listComments } from "../services/commentService.js";
 
-export const index: RequestHandler = async (_req, res) => {
-  sendSuccess(res, await listComments(currentSession(res.locals).userId));
+export const index: RequestHandler = async (req, res) => {
+  sendSuccess(res, await listComments(currentSession(res.locals).userId, req.query));
 };
 
 export const indexForBook: RequestHandler = async (req, res) => {
@@ -13,6 +13,7 @@ export const indexForBook: RequestHandler = async (req, res) => {
     res,
     await listComments(
       currentSession(res.locals).userId,
+      req.query,
       parsePositiveId(req.params.id, "bookId"),
     ),
   );

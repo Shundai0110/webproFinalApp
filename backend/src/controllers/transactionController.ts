@@ -9,8 +9,8 @@ import {
   requestTransaction,
 } from "../services/transactionService.js";
 
-export const index: RequestHandler = async (_req, res) => {
-  sendSuccess(res, await listOwnTransactions(currentSession(res.locals).userId));
+export const index: RequestHandler = async (req, res) => {
+  sendSuccess(res, await listOwnTransactions(currentSession(res.locals).userId, req.query));
 };
 
 export const create: RequestHandler = async (req, res) => {

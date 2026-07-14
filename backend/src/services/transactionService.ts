@@ -4,6 +4,7 @@ import { nextApprovalState } from "../domain/transactionPolicy.js";
 import { AppError } from "../errors/AppError.js";
 import { prisma } from "../lib/prisma.js";
 import { ephemeralStore } from "../lib/ephemeralStore.js";
+import { pageResult, readPagination } from "../lib/pagination.js";
 import {
   allowOnly,
   inputRecord,
@@ -185,27 +186,49 @@ export async function approveTransaction(currentUserId: number, id: number, inpu
   );
 }
 
-export async function listOwnNotifications(currentUserId: number) {
+export async function listOwnNotifications(currentUserId: number, rawQuery: unknown) {
   await getOwnProfile(currentUserId);
+  const pagination = readPagination(rawQuery);
   if (env.storageMode === "ephemeral") {
-    return ephemeralStore.listNotifications(currentUserId);
+    return pageResult(
+      ephemeralStore.listNotifications(currentUserId, pagination.pageSize, pagination.offset),
+      ephemeralStore.countNotifications(currentUserId),
+      pagination,
+    );
   }
-  return prisma.notification.findMany({
-    where: { userId: currentUserId },
-    orderBy: { createdAt: "desc" },
-    take: 100,
-  });
+  const where = { userId: currentUserId };
+  const [items, total] = await Promise.all([
+    prisma.notification.findMany({
+      where,
+      orderBy: { createdAt: "desc" },
+      skip: pagination.offset,
+      take: pagination.pageSize,
+    }),
+    prisma.notification.count({ where }),
+  ]);
+  return pageResult(items, total, pagination);
 }
 
-export async function listOwnTransactions(currentUserId: number) {
+export async function listOwnTransactions(currentUserId: number, rawQuery: unknown) {
   await getOwnProfile(currentUserId);
+  const pagination = readPagination(rawQuery);
   if (env.storageMode === "ephemeral") {
-    return ephemeralStore.listTransactions(currentUserId);
+    return pageResult(
+      ephemeralStore.listTransactions(currentUserId, pagination.pageSize, pagination.offset),
+      ephemeralStore.countTransactions(currentUserId),
+      pagination,
+    );
   }
-  return prisma.transaction.findMany({
-    where: { OR: [{ buyerId: currentUserId }, { sellerId: currentUserId }] },
-    include: transactionInclude,
-    orderBy: { createdAt: "desc" },
-    take: 100,
-  });
+  const where = { OR: [{ buyerId: currentUserId }, { sellerId: currentUserId }] };
+  const [items, total] = await Promise.all([
+    prisma.transaction.findMany({
+      where,
+      include: transactionInclude,
+      orderBy: { createdAt: "desc" },
+      skip: pagination.offset,
+      take: pagination.pageSize,
+    }),
+    prisma.transaction.count({ where }),
+  ]);
+  return pageResult(items, total, pagination);
 }

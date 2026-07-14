@@ -14,12 +14,18 @@ export const bookInclude = {
   },
 } satisfies Prisma.BookInclude;
 
-export function findBooks(where: Prisma.BookWhereInput) {
+export function findBooks(where: Prisma.BookWhereInput, skip = 0, take = 20) {
   return prisma.book.findMany({
     where,
     include: bookInclude,
     orderBy: [{ usedYear: "desc" }, { createdAt: "desc" }],
+    skip,
+    take,
   });
+}
+
+export function countBooks(where: Prisma.BookWhereInput) {
+  return prisma.book.count({ where });
 }
 
 export function findBookById(id: number) {

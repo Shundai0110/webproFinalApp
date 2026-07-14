@@ -3,6 +3,6 @@ import { sendSuccess } from "../lib/http.js";
 import { currentSession } from "../middlewares/authMiddleware.js";
 import { listOwnNotifications } from "../services/transactionService.js";
 
-export const index: RequestHandler = async (_req, res) => {
-  sendSuccess(res, await listOwnNotifications(currentSession(res.locals).userId));
+export const index: RequestHandler = async (req, res) => {
+  sendSuccess(res, await listOwnNotifications(currentSession(res.locals).userId, req.query));
 };

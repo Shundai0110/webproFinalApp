@@ -182,6 +182,7 @@ project-root/
 - 最後のブラウザ終了時、90秒heartbeatなし、プロセス停止・再起動時に変更データを破棄する。永続性やバックアップを追加しない。
 - 複数ブラウザは同じWeb Serviceプロセスが動作している間だけ一時DBを共有する。
 - 手動初期化はactive clientが1つ以下の場合だけ許可し、同時接続client数は200件を上限とする。
+- 公開用一時データはバックアップせず、schemaと架空seedからの再生成を復旧手段とする。
 - `User`、`Book`、`Transaction`、`Notification` のPrismaモデルと初期migrationは任意のローカルMySQL検証用として残す。
 - `backend/prisma/seed.ts` に架空ユーザー・Book・Transaction・通知の冪等seedを実装済み。
 - Prisma schema は `backend/prisma/schema.prisma` に置く。
@@ -299,6 +300,18 @@ cd backend
 npm test
 ```
 
+API E2Eと2利用者ブラウザE2Eは、通常の単体テストから分離します。
+
+```bash
+npm run test:e2e
+npm exec --prefix backend -- playwright install chromium
+npm run test:browser
+```
+
+- `test:e2e` はSupertestで2利用者の認証、出品共有、自己購入拒否、双方承諾、ポイント移動、ページング、最終client終了時resetを確認する。
+- `test:browser` はPlaywrightの独立browser context 2つで、自分の出品表示、別利用者への共有、購入相談を確認する。
+- E2Eは公開用SQLite `:memory:`だけを使用し、MySQLへ自動接続・書き込みしない。
+
 重点的にテストする観点:
 
 - デモユーザーまたは仮想セッションで利用開始できること。
@@ -382,6 +395,10 @@ README にある重要テストケース:
 - DB 操作はPrismaまたは `EphemeralStore` のparameter binding済みprepared statement経由で行い、ユーザー入力をSQL文字列へ連結しない。
 - ユーザー入力を HTML として直接描画しない。
 - 本番エラーでは内部スタックトレースを返さない。
+- `/api` のインメモリrate limitは1クライアント1分180件を基準とし、生IPは保存せずプロセスsaltでハッシュ化する。
+- 一覧APIは `page` / `pageSize` を受け取り、既定20件・最大50件とする。
+- 500系エラーログはrequest ID、method、固定route pattern、status、error codeだけとし、生path、body、query、token、IP、ユーザー入力を記録しない。
+- `/api/health` は選択中storageへ `SELECT 1` を実行し、接続不能時は503を返す。
 - 実決済・カード登録・銀行口座登録・実在個人情報保存につながる UI、API、DB カラムを追加しない。
 - 個人情報風の UI、API、DB カラムを追加する場合は、`dummy_*` など架空データであることが明確な命名にし、README のセキュリティ方針に合わせる。
 - Book 更新は出品者のみ許可する。
@@ -435,6 +452,7 @@ Render.comのFree Web Service 1個へのデプロイを想定し、ルートの 
 - `SERVE_FRONTEND=true`
 
 ExpressがfrontendとAPIを同一オリジンで配信します。別frontendサービス、MySQL、Persistent Disk、外部DBを作成しないでください。
+frontendを単独確認する場合も `npm --prefix frontend run build` を成功させ、`server.mjs` はRender要件に合わせて `0.0.0.0`へbindする状態を維持してください。
 
 有料プラン、カード登録、従量課金、Persistent Diskが必要になった場合はデプロイを中止してユーザーへ伝えてください。Free Web Serviceの停止・再起動、最後のブラウザ終了、90秒heartbeatなしで一時データを破棄する仕様を維持します。
 

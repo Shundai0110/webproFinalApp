@@ -26,6 +26,10 @@ function clone(value) {
   return JSON.parse(JSON.stringify(value));
 }
 
+function pageItems(value) {
+  return Array.isArray(value) ? value : value?.items || [];
+}
+
 function sessionStore() {
   return globalThis.sessionStorage;
 }
@@ -181,20 +185,20 @@ async function refreshMarketplace() {
     return;
   }
   const [books, transactions, notifications, comments, ownProfile] = await Promise.all([
-    request("/books"),
-    request("/transactions"),
-    request("/notifications"),
-    request("/comments"),
+    request("/books?page=1&pageSize=50"),
+    request("/transactions?page=1&pageSize=50"),
+    request("/notifications?page=1&pageSize=50"),
+    request("/comments?page=1&pageSize=50"),
     request("/users/me"),
   ]);
-  cache.books = books.map(mapBook);
-  cache.transactions = transactions.map(mapTransaction);
-  cache.notifications = notifications.map((notification) => ({
+  cache.books = pageItems(books).map(mapBook);
+  cache.transactions = pageItems(transactions).map(mapTransaction);
+  cache.notifications = pageItems(notifications).map((notification) => ({
     ...notification,
     id: String(notification.id),
     userId: String(notification.userId),
   }));
-  cache.comments = comments.map(mapComment);
+  cache.comments = pageItems(comments).map(mapComment);
   setAuthenticatedSession(ownProfile);
   await refreshAccounts();
 }
@@ -361,7 +365,6 @@ export async function createListing(input) {
       title: String(input.title || "").trim(),
       price: Number(input.price),
       description: String(input.description || "").trim() || undefined,
-      imageUrl: "/assets/book-generic.svg",
       usedLesson: String(input.course || "").trim(),
       usedYear: Number(input.usedYear),
       usedFaculty: String(input.faculty || session.faculty),

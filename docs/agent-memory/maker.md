@@ -30,7 +30,7 @@ Reviewer は独立性を保つため、このファイルを参照しません�
 ## 現在の残タスク
 
 - Renderへの実デプロイと、Render上での複数ブラウザ共有・停止後初期化は未確認。
-- ローカルHTTPと自動テストは確認済みだが、実ブラウザ画面の目視操作は未確認。
+- ローカルHTTP、Supertest API E2E、Playwrightの2利用者ブラウザ操作を確認済み。Render上の目視操作は未確認。
 - 任意のMySQLモードはCommentsを永続化せず、無料公開では使用しない。ローカルMySQLは `.local/mysql` の127.0.0.1:3307に残っている。
 
 ## 2026-07-14 の実装
@@ -67,3 +67,10 @@ Reviewer は独立性を保つため、このファイルを参照しません�
 - Expressから静的frontendとAPIを同一オリジン配信し、Render Free Web Service 1個だけを作る `render.yaml` を追加した。MySQL、Persistent Disk、外部DB、カード・課金設定は公開構成に含めない。
 - `npm run dev` は一時DB統合サーバーを起動し、開発時のEADDRINUSEでは最大10ポート先まで再試行する。本番では指定PORTのbind失敗を異常終了にする。
 - frontendのAPIモックテストとbackend一時DBテストを追加し、localStorage未使用、認証header、5,000ポイント、自己購入拒否、双方成立、ポイント移動、最終client終了時resetを確認した。
+- frontend単独buildと `0.0.0.0` bindを確認し、Renderでは引き続き統合Web Serviceから同一オリジン配信する。
+- APIへ生IPを保存しない1分180件のインメモリrate limit、request ID、固定route patternだけを使う500系JSONエラーログを追加した。
+- Books、Transactions、Comments、Notificationsへ既定20件・最大50件のページングを追加し、frontendをページレスポンスへ追従させた。
+- healthは選択中storageへ `SELECT 1` を実行し、SQLite統計またはMySQL接続状態を返し、失敗時は503にする。
+- Supertest API E2Eで2利用者のsession、出品共有、自己購入拒否、双方承諾、ポイント移動、ページング、最終client終了時resetを確認した。
+- Playwright Chromiumの独立browser context 2つで、自分の出品表示・購入不可、別利用者への出品共有、購入相談、出品者への取引反映を確認した。
+- 公開用一時DBはバックアップせず、schemaと架空seedからのresetを復旧手段とする。MySQLは公開せず、health probe以外の自動接続は行わない。

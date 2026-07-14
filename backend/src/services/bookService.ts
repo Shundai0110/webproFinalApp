@@ -14,11 +14,13 @@ import {
   type InputRecord,
 } from "../lib/validation.js";
 import {
+  countBooks,
   createBook,
   findBookById,
   findBooks,
   updateBook,
 } from "../repositories/bookRepository.js";
+import { pageResult, readPagination } from "../lib/pagination.js";
 import { getOwnProfile } from "./authService.js";
 import { calculateRelatedScore } from "./rankingService.js";
 import {
@@ -50,6 +52,8 @@ const BOOK_QUERY_FIELDS = [
   "materialType",
   "category",
   "status",
+  "page",
+  "pageSize",
 ] as const;
 
 function queryString(input: InputRecord, key: string, maxLength: number) {
@@ -120,11 +124,12 @@ export async function listBooks(userId: number, rawQuery: unknown) {
   const user = await getOwnProfile(userId);
   const query = inputRecord(rawQuery);
   allowOnly(query, BOOK_QUERY_FIELDS);
+  const pagination = readPagination(query);
   const q = queryString(query, "q", 255);
   const status = optionalEnum(query, "status", BOOK_STATUSES);
   const materialType = optionalEnum(query, "materialType", MATERIAL_TYPES);
   if (env.storageMode === "ephemeral") {
-    const books = ephemeralStore.listBooks({
+    const filters = {
       q,
       status,
       materialType,
@@ -133,10 +138,14 @@ export async function listBooks(userId: number, rawQuery: unknown) {
       year: queryInteger(query, "year", 1, 6),
       usedYear: queryInteger(query, "usedYear", 2000, 2100),
       category: queryString(query, "category", 100),
-    } satisfies EphemeralBookQuery);
-    return books
+      limit: pagination.pageSize,
+      offset: pagination.offset,
+    } satisfies EphemeralBookQuery;
+    const books = ephemeralStore.listBooks(filters);
+    const items = books
       .map((book) => ({ ...book, relatedScore: calculateRelatedScore(book, user, q) }))
       .sort((left, right) => right.relatedScore - left.relatedScore || right.usedYear - left.usedYear);
+    return pageResult(items, ephemeralStore.countBooks(filters), pagination);
   }
   const where: Prisma.BookWhereInput = {
     status: status ?? { not: "CANCELLED" },
@@ -161,10 +170,14 @@ export async function listBooks(userId: number, rawQuery: unknown) {
     }
   });
 
-  const books = await findBooks(where);
-  return books
+  const [books, total] = await Promise.all([
+    findBooks(where, pagination.offset, pagination.pageSize),
+    countBooks(where),
+  ]);
+  const items = books
     .map((book) => ({ ...book, relatedScore: calculateRelatedScore(book, user, q) }))
     .sort((left, right) => right.relatedScore - left.relatedScore || right.usedYear - left.usedYear);
+  return pageResult(items, total, pagination);
 }
 
 export async function getBook(id: number) {

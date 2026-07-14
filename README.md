@@ -1435,6 +1435,8 @@ frontend/
 
 公開デモはルートの `render.yaml` を使い、Render Free Web Serviceを1個だけ作る。Expressが `frontend/` の静的ファイルと `/api` を同一オリジンで配信し、データはサービスプロセス内のSQLite `:memory:`だけに保存する。
 
+`frontend/package.json` の `npm run build` は配信用JavaScriptと `server.mjs` の構文を検査し、単独static serverも `HOST` 未指定時に `0.0.0.0`へbindする。ただしRenderではfrontendを別サービスにせず、下記の統合Web Serviceから配信する。
+
 | 対象 | Renderサービス種別 | Build Command | Start Command |
 |---|---|---|---|
 | frontend + Express API + 一時DB | Free Web Service | `npm ci --prefix backend && npm run build` | `npm start` |
@@ -1478,9 +1480,17 @@ flowchart TB
 
 画面の手動初期化は、他のブラウザの作業を消さないようactive clientが1つ以下の場合だけ許可する。同時接続client数はプロセスメモリ保護のため200件を上限とする。
 
+### 15.5 API運用保護
+
+- `/api` は1クライアントあたり1分180リクエストのインメモリrate limitを適用する。
+- rate limitの識別元IPは保存せず、プロセスごとのsaltを使ったSHA-256一時識別子だけをメモリへ保持する。
+- Books、Transactions、Comments、Notificationsの一覧は `page` と `pageSize` を受け取り、既定20件、最大50件とする。
+- 全リクエストに `X-Request-ID` を付与する。500系ログはrequest ID、method、固定route pattern、status、error codeだけをJSONで標準エラーへ出し、生path、body、query、token、IP、入力本文は記録しない。
+- `/api/health` はSQLiteまたはMySQLへ `SELECT 1` を実行する。接続できない場合は503を返す。
+
 これはデモ用であり永続性を保証しない。同時に開いている利用者間では共有できるが、全ブラウザ終了、通信断、サービス停止、再デプロイのいずれかで出品・取引・コメント・追加アカウントは失われる。
 
-### 15.5 デプロイ手順
+### 15.6 デプロイ手順
 
 1. 変更をGitHubへpushする。
 2. RenderでNew Blueprintを選び、リポジトリの `render.yaml` を読み込む。
@@ -1489,16 +1499,20 @@ flowchart TB
 5. 2つのブラウザでアカウントを切り替え、出品・購入相談が共有されることを確認する。
 6. 全ブラウザを閉じた後、再度開いてseed状態へ戻ることを確認する。
 
-### 15.6 デプロイ後確認項目
+### 15.7 デプロイ後確認項目
 
 | 確認項目 | 確認内容 | 結果 |
 |---|---|---|
 | フロントエンド表示 | トップページが表示される | ローカル確認済み / Render未確認 |
 | API疎通 | `/api/health`が200を返す | ローカル確認済み / Render未確認 |
+| DB probe | healthが`storage.status: up`と`probe: SELECT 1`を返す | 自動テスト確認済み / Render未確認 |
 | 一時DB | `storage.mode`が`ephemeral`である | ローカル確認済み / Render未確認 |
 | 同一オリジン | frontendとAPIを同じWeb Serviceが配信する | ローカル確認済み / Render未確認 |
 | 認証付き出品 | Bearer認証後の`POST /api/books`だけ成功する | 自動テスト・ローカルHTTP確認済み |
 | 取引制約 | 自己購入拒否、双方承諾、ポイント移動、SOLD更新が原子的に動く | 自動テスト確認済み |
+| 2利用者ブラウザ | 独立browser context間で出品・購入相談が共有される | Playwright確認済み / Render未確認 |
+| ページング | 既定20件、最大50件で件数情報を返す | API E2E確認済み |
+| rate limit | 上限超過時に429と`Retry-After`を返す | 自動テスト確認済み |
 | 終了時初期化 | 最終client close後にseed件数へ戻る | ローカルHTTP確認済み / Render未確認 |
 | 無料構成 | Free Web Service 1個で、Disk・外部DB・課金設定がない | 設定確認済み / Render未作成 |
 | 実決済遮断 | カード番号、銀行口座、外部決済URLを入力・保存・送信できない | 自動テスト確認済み |
@@ -1514,6 +1528,8 @@ flowchart TB
 | 画面テスト | デモ利用開始、検索、出品、購入、承諾、完了表示 |
 | APIテスト | 正常系、異常系、バリデーション、認可 |
 | DBテスト | User / Book / Transactionの作成・更新・外部キー制約 |
+| API E2E | 2利用者のsession、出品共有、自己購入拒否、双方承諾、ポイント移動、終了時reset |
+| ブラウザE2E | 2つの独立browser contextによる出品共有、自分の出品表示、購入相談 |
 | 取引ロジック | 双方承諾時のみTransactionがCOMPLETEDになる |
 | セキュリティテスト | デモ認証、認可、SQLインジェクション、XSS、実決済遮断、架空個人情報の同等保護 |
 | デプロイ確認 | Freeプラン、環境変数、一時DB、同一オリジン、終了時初期化、ログ |
@@ -1554,8 +1570,8 @@ flowchart TB
 
 | 項目 | 方針 |
 |---|---|
-| ログ確認 | Render DashboardのLogsを確認する |
-| 障害対応 | 500エラー発生時はAPIログ、一時DBのgeneration、入力値を確認する。デモデータは復旧せずseedへ戻す |
+| ログ確認 | Render DashboardのLogsでrequest ID、method、固定route pattern、status、error codeを確認する。生path、入力値、tokenは記録しない |
+| 障害対応 | 500エラー発生時はAPIログと一時DBのgenerationを確認する。デモデータは復元せずseedへ戻す |
 | DBバックアップ | 一時DBはバックアップしない。実在情報を入れず、消失を前提とする |
 | 環境変数変更 | Render Dashboard上で変更し、再デプロイする |
 | スキーマ変更 | 公開用SQLite schemaはコード、任意のMySQL schemaはPrisma migrationで変更履歴を管理する |
@@ -1607,6 +1623,16 @@ frontend と backend のテストは、リポジトリ直下からまとめて�
 ```bash
 npm test
 ```
+
+実ポートを使うAPI E2Eと、Chromiumを使う2利用者ブラウザE2Eは分離して実行する。初回のブラウザ試験前だけ無料のChromiumテストバイナリを導入する。
+
+```bash
+npm run test:e2e
+npx --prefix backend playwright install chromium
+npm run test:browser
+```
+
+API E2Eは公開用SQLite `:memory:`を使用する。公開構成で使用しないMySQLへ自動接続・書き込みは行わない。MySQLモードでは `/api/health` の接続probeだけを実装し、実行には従来どおり接続内容の提示と明示承諾を必要とする。
 
 本番相当のビルドと起動は次の通り。
 

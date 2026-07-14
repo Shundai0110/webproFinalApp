@@ -2,6 +2,7 @@ import { env } from "../config/env.js";
 import { AppError } from "../errors/AppError.js";
 import { ephemeralStore } from "../lib/ephemeralStore.js";
 import { allowOnly, inputRecord, requiredString } from "../lib/validation.js";
+import { pageResult, readPagination } from "../lib/pagination.js";
 import { getOwnProfile } from "./authService.js";
 
 function requireEphemeralComments() {
@@ -14,10 +15,17 @@ function requireEphemeralComments() {
   }
 }
 
-export async function listComments(currentUserId: number, bookId?: number) {
+export async function listComments(currentUserId: number, rawQuery: unknown, bookId?: number) {
   await getOwnProfile(currentUserId);
   requireEphemeralComments();
-  return ephemeralStore.listComments(bookId);
+  const query = inputRecord(rawQuery);
+  allowOnly(query, ["page", "pageSize"]);
+  const pagination = readPagination(query);
+  return pageResult(
+    ephemeralStore.listComments(bookId, pagination.pageSize, pagination.offset),
+    ephemeralStore.countComments(bookId),
+    pagination,
+  );
 }
 
 export async function addComment(currentUserId: number, bookId: number, input: unknown) {

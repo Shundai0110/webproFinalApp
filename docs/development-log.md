@@ -488,3 +488,28 @@
 - ユーザーの明示指示がある場合だけ、課金・カード登録がないことを確認してRender Free Blueprintへデプロイする。
 - デプロイ後に2ブラウザで共有、最終close/90秒失効、サービス停止後のseed復元を確認する。
 - 公開前の追加課題としてrate limit、ページング、操作ログ方針をReviewerに再評価してもらう。
+
+## 2026-07-15 00:03
+## 未コミット（基点 50f6e54）, feat: 公開デモの運用保護とE2Eを追加
+### 依頼内容
+- frontendのRender向けbuild・bindを整え、将来無料プランへデプロイできる状態にする。
+- 本格運用ではないデモとして、API E2E、2利用者ブラウザ試験、rate limit、ページング、DB health、エラーログ、バックアップ・復旧・リセットを最低限実装する。
+
+### 実施内容
+- 変更したファイル: `.gitignore`, `package.json`, `backend/package.json`, `backend/package-lock.json`, `backend/playwright.config.mjs`, `backend/e2e/`, `backend/tests/`, `backend/src/app.ts`, controllers・services・repository・一時DB・health・pagination・rate limit・request context・error handler, `frontend/src/apiClient.js`, `database/notes.md`, `README.md`, `AGENTS.md`, `docs/agent-memory/maker.md`, `docs/development-log.md`
+- frontendの既存build scriptと `0.0.0.0` bindを再確認し、単独serverのHTTP 200を確認した。Renderは従来どおり統合Free Web Service 1個からfrontend/APIを同一オリジン配信する。
+- 1分180件のインメモリrate limitを追加した。生IPは保存せずプロセスsaltでハッシュ化し、超過時は429と`Retry-After`を返す。
+- Books、Transactions、Comments、Notificationsへ `page` / `pageSize`、既定20件・最大50件、total・totalPagesを追加し、frontendを追従させた。
+- healthでSQLiteまたは任意のMySQLへ `SELECT 1` を実行し、接続不能時は503を返すようにした。
+- request IDと500系JSONログを追加し、固定route patternだけを記録して生path、body、query、token、IP、エラー本文を記録しないようにした。
+- Supertest API E2EとPlaywright 2利用者ブラウザE2Eを追加した。公開用SQLiteを使い、MySQLへ自動接続・書き込みしない。
+- 公開データはバックアップせず、schemaと架空seedからの再生成、最終client終了、90秒heartbeat失効、手動resetを復旧手段とする方針を文書化した。
+
+### 確認内容
+- 実行したコマンド: `npm install --save-dev supertest @types/supertest @playwright/test`, `npx playwright install chromium`, `npm test`, `npm run build`, `npm run test:e2e`, `npm run test:browser`, `npm --prefix frontend start`, `curl -I`, `git diff --check`, `rg`, `sed`, `git status`
+- テスト結果: frontend 2 test files、backend 4 test filesが成功。API E2E 1件で2利用者の出品・取引・ポイント・ページング・resetを確認。Playwright 1件で独立browser context間の出品共有、自己購入拒否表示、購入相談、取引反映を確認。frontend単独build、4191番HTTP 200、TypeScript buildが成功。追加依存導入時のnpm auditは0 vulnerabilities。
+- 未確認事項: Renderへの実デプロイ、Render上のrate limit・health・停止復旧、長時間・負荷試験。公開構成でMySQLを使わないためMySQL書き込みE2Eは追加せず、health probeのみ実装した。
+
+### 次にやること
+- ユーザーの明示指示がある場合だけ、無料・カード登録不要を確認してRender Blueprintへデプロイする。
+- デプロイ後にhealth、2ブラウザ共有、429応答、全ブラウザ終了またはサービス停止後のseed復旧を確認する。

@@ -90,6 +90,8 @@ export type EphemeralBookQuery = {
   materialType?: string;
   category?: string;
   status?: string;
+  limit?: number;
+  offset?: number;
 };
 
 const userColumns = `
@@ -104,6 +106,33 @@ const userColumns = `
   created_at AS createdAt,
   updated_at AS updatedAt
 `;
+
+const bookWhereSql = `
+  (($status IS NULL AND b.status <> 'CANCELLED') OR b.status = $status)
+  AND ($faculty IS NULL OR b.used_faculty = $faculty)
+  AND ($department IS NULL OR b.used_department = $department)
+  AND ($targetYear IS NULL OR b.target_year = $targetYear)
+  AND ($usedYear IS NULL OR b.used_year = $usedYear)
+  AND ($materialType IS NULL OR b.material_type = $materialType)
+  AND ($category IS NULL OR b.category = $category)
+  AND (
+    $q IS NULL OR instr(lower(b.title), lower($q)) > 0
+    OR instr(lower(b.used_lesson), lower($q)) > 0
+  )
+`;
+
+function bookFilterParams(filters: EphemeralBookQuery) {
+  return {
+    status: filters.status ?? null,
+    faculty: filters.faculty ?? null,
+    department: filters.department ?? null,
+    targetYear: filters.year ?? null,
+    usedYear: filters.usedYear ?? null,
+    materialType: filters.materialType ?? null,
+    category: filters.category ?? null,
+    q: filters.q ?? null,
+  } satisfies Record<string, SqlValue>;
+}
 
 function isoNow() {
   return new Date().toISOString();
@@ -162,6 +191,11 @@ export class EphemeralStore {
       comments: count("comments"),
       notifications: count("notifications"),
     };
+  }
+
+  probe() {
+    const row = this.#db.prepare("SELECT 1 AS ok").get() as Row;
+    return Number(row.ok) === 1;
   }
 
   listUsers() {
@@ -235,37 +269,29 @@ export class EphemeralStore {
   }
 
   listBooks(filters: EphemeralBookQuery = {}) {
-    const params: Record<string, SqlValue> = {
-      status: filters.status ?? null,
-      faculty: filters.faculty ?? null,
-      department: filters.department ?? null,
-      targetYear: filters.year ?? null,
-      usedYear: filters.usedYear ?? null,
-      materialType: filters.materialType ?? null,
-      category: filters.category ?? null,
-      q: filters.q ?? null,
-    };
+    const params = bookFilterParams(filters);
     const rows = this.#db
       .prepare(`
         SELECT ${this.#bookColumns()}
         FROM books b
         JOIN users u ON u.id = b.seller_id
-        WHERE (($status IS NULL AND b.status <> 'CANCELLED') OR b.status = $status)
-          AND ($faculty IS NULL OR b.used_faculty = $faculty)
-          AND ($department IS NULL OR b.used_department = $department)
-          AND ($targetYear IS NULL OR b.target_year = $targetYear)
-          AND ($usedYear IS NULL OR b.used_year = $usedYear)
-          AND ($materialType IS NULL OR b.material_type = $materialType)
-          AND ($category IS NULL OR b.category = $category)
-          AND (
-            $q IS NULL OR instr(lower(b.title), lower($q)) > 0
-            OR instr(lower(b.used_lesson), lower($q)) > 0
-          )
+        WHERE ${bookWhereSql}
         ORDER BY b.used_year DESC, b.created_at DESC
-        LIMIT 100
+        LIMIT $limit OFFSET $offset
       `)
-      .all(params) as Row[];
+      .all({
+        ...params,
+        limit: filters.limit ?? 100,
+        offset: filters.offset ?? 0,
+      }) as Row[];
     return rows.map((row) => this.#mapBook(row));
+  }
+
+  countBooks(filters: EphemeralBookQuery = {}) {
+    const row = this.#db
+      .prepare(`SELECT COUNT(*) AS count FROM books b WHERE ${bookWhereSql}`)
+      .get(bookFilterParams(filters)) as Row;
+    return Number(row.count);
   }
 
   getBook(id: number) {
@@ -341,16 +367,23 @@ export class EphemeralStore {
     return this.getBook(id)!;
   }
 
-  listTransactions(userId: number) {
+  listTransactions(userId: number, limit = 100, offset = 0) {
     const ids = this.#db
       .prepare(`
         SELECT id FROM transactions
         WHERE buyer_id = ? OR seller_id = ?
         ORDER BY created_at DESC
-        LIMIT 100
+        LIMIT ? OFFSET ?
       `)
-      .all(userId, userId) as Row[];
+      .all(userId, userId, limit, offset) as Row[];
     return ids.map((row) => this.getTransaction(Number(row.id))!);
+  }
+
+  countTransactions(userId: number) {
+    const row = this.#db
+      .prepare("SELECT COUNT(*) AS count FROM transactions WHERE buyer_id = ? OR seller_id = ?")
+      .get(userId, userId) as Row;
+    return Number(row.count);
   }
 
   getTransaction(id: number): EphemeralTransaction | null {
@@ -514,7 +547,7 @@ export class EphemeralStore {
     });
   }
 
-  listNotifications(userId: number) {
+  listNotifications(userId: number, limit = 100, offset = 0) {
     const rows = this.#db
       .prepare(`
         SELECT
@@ -524,13 +557,20 @@ export class EphemeralStore {
         FROM notifications
         WHERE user_id = ?
         ORDER BY created_at DESC
-        LIMIT 100
+        LIMIT ? OFFSET ?
       `)
-      .all(userId) as Row[];
+      .all(userId, limit, offset) as Row[];
     return rows.map((row) => ({ ...row, read: bool(row.read) }));
   }
 
-  listComments(bookId?: number) {
+  countNotifications(userId: number) {
+    const row = this.#db
+      .prepare("SELECT COUNT(*) AS count FROM notifications WHERE user_id = ?")
+      .get(userId) as Row;
+    return Number(row.count);
+  }
+
+  listComments(bookId?: number, limit = 100, offset = 0) {
     const rows = this.#db
       .prepare(`
         SELECT
@@ -541,10 +581,17 @@ export class EphemeralStore {
         JOIN users u ON u.id = c.author_id
         WHERE (? IS NULL OR c.book_id = ?)
         ORDER BY c.created_at ASC
-        LIMIT 500
+        LIMIT ? OFFSET ?
       `)
-      .all(bookId ?? null, bookId ?? null) as Row[];
+      .all(bookId ?? null, bookId ?? null, limit, offset) as Row[];
     return asRows(rows);
+  }
+
+  countComments(bookId?: number) {
+    const row = this.#db
+      .prepare("SELECT COUNT(*) AS count FROM comments WHERE (? IS NULL OR book_id = ?)")
+      .get(bookId ?? null, bookId ?? null) as Row;
+    return Number(row.count);
   }
 
   createComment(bookId: number, authorId: number, body: string) {

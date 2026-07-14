@@ -4,6 +4,8 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { env } from "./config/env.js";
 import { errorHandler } from "./middlewares/errorHandler.js";
+import { apiRateLimit } from "./middlewares/rateLimit.js";
+import { requestContext } from "./middlewares/requestContext.js";
 import { authRouter } from "./routes/authRoutes.js";
 import { bookRouter } from "./routes/bookRoutes.js";
 import { commentRouter } from "./routes/commentRoutes.js";
@@ -19,6 +21,8 @@ export function createApp() {
   const app = express();
 
   app.disable("x-powered-by");
+  app.set("trust proxy", 1);
+  app.use(requestContext);
   app.use(express.json({ limit: "1mb" }));
   app.use(express.urlencoded({ extended: false, limit: "8kb" }));
   app.use(
@@ -38,6 +42,7 @@ export function createApp() {
     );
     next();
   });
+  app.use("/api", apiRateLimit);
 
   app.use("/api/health", healthRouter);
   app.use("/api/demo", demoRouter);
