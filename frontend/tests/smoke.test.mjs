@@ -11,6 +11,10 @@ test("HTML loads the application entrypoint", async () => {
   assert.match(html, /src\/app\.js/);
   assert.match(html, /id="book-list"/);
   assert.match(html, /id="listing-form"/);
+  assert.match(html, /id="demo-user-select"/);
+  assert.match(html, /id="profile-form"/);
+  assert.match(html, /id="account-form"/);
+  assert.match(html, /初期残高 5,000 pt/);
 });
 
 test("seed data contains marketplace states", async () => {
@@ -22,10 +26,46 @@ test("seed data contains marketplace states", async () => {
   assert.match(data, /REFERENCE/);
 });
 
-test("api client exposes future backend seams", async () => {
+test("api client exposes the backend API boundary", async () => {
   const apiClient = await readFile(join(root, "src", "apiClient.js"), "utf8");
   assert.match(apiClient, /export function getSession/);
   assert.match(apiClient, /export function listBooks/);
-  assert.match(apiClient, /export function createListing/);
-  assert.match(apiClient, /export function requestPurchase/);
+  assert.match(apiClient, /export async function initializeApi/);
+  assert.match(apiClient, /export async function createListing/);
+  assert.match(apiClient, /export async function requestPurchase/);
+  assert.match(apiClient, /export async function approveTransaction/);
+  assert.match(apiClient, /export function listNotifications/);
+  assert.match(apiClient, /export async function startDemoSession/);
+  assert.match(apiClient, /export async function updateProfile/);
+  assert.match(apiClient, /export async function createDemoAccount/);
+  assert.match(apiClient, /export async function createComment/);
+  assert.match(apiClient, /export function listComments/);
+  assert.match(apiClient, /fetch\(`\$\{API_BASE\}/);
+  assert.doesNotMatch(apiClient, /localStorage/);
+});
+
+test("own listings have a visible marker", async () => {
+  const app = await readFile(join(root, "src", "app.js"), "utf8");
+  const styles = await readFile(join(root, "styles.css"), "utf8");
+  assert.match(app, /is-own-listing/);
+  assert.match(app, /自分の出品/);
+  assert.match(styles, /\.book-card\.is-own-listing/);
+});
+
+test("payment UI is demo points only", async () => {
+  const html = await readFile(join(root, "index.html"), "utf8");
+  const app = await readFile(join(root, "src", "app.js"), "utf8");
+  assert.match(app, /仮想ポイント支払い/);
+  assert.match(app, /換金不可・現金価値なし/);
+  assert.match(app, /購入・支払いを承諾/);
+  assert.doesNotMatch(html, /card-number|cvc|bank-account/i);
+});
+
+test("comment UI uses text content and does not request real contact details", async () => {
+  const html = await readFile(join(root, "index.html"), "utf8");
+  const app = await readFile(join(root, "src", "app.js"), "utf8");
+  assert.match(app, /createCommentsPanel/);
+  assert.match(app, /body\.textContent = comment\.body/);
+  assert.match(app, /実在する連絡先や個人情報は入力しないでください/);
+  assert.doesNotMatch(html, /type="(?:email|tel|file)"/i);
 });

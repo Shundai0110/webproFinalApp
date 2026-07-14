@@ -2,7 +2,7 @@
 
 作成日時: 2026-MM-DD
 対象アプリ: 慶應生向け教科書売買アプリ  
-対象構成: Next.js / TypeScript / Node.js / Express / Prisma / MySQL / Render.com
+対象構成: HTML / CSS / JavaScript / Node.js / Express / 一時SQLite / Render.com
 
 ---
 
@@ -30,8 +30,8 @@
 
 本Webアプリは、慶應義塾大学の学生同士が、授業で使用する教科書を売買・譲渡できるWebアプリを提供する。
 
-ユーザーは、教科書名、授業名、学部、学科、学年、使用年度、必須教材か参考書かといった条件から教科書を検索できる。  
-出品者は、教科書の写真、価格、対象授業、使用年度、状態などを登録できる。  
+ユーザーは、教科書名、授業名、学部、学科、学年、使用年度、必須教材か参考書かといった条件から教科書を検索できる。ただし、学科・学年・使用年度・教材種別・カテゴリのfrontend検索UIは**現状実装未定**である。
+出品者は、教科書の写真、価格、対象授業、使用年度、状態などを登録できる。ただし、画像URLを登録するfrontend入力欄は**現状実装未定**である。
 購入者と出品者の双方が承諾した場合のみ、取引を成立させる。
 
 本アプリはデモ・学習用途を前提とし、実際の金銭決済、クレジットカード登録、銀行口座登録、実在する連絡先や本人確認書類の保存は行わない。
@@ -45,7 +45,7 @@
 | 教科書の購入費用が高い | 学生間で中古教科書を売買・譲渡できる |
 | 授業と教科書の対応が分かりにくい | 出品時に授業名・使用年度・学部・学科・学年を登録する |
 | 購入合意が曖昧になりやすい | Transactionで購入者・出品者の承諾状態を管理する |
-| 探したい教科書を見つけにくい | 教科書・授業・学部・学科・学年・年度・教材種別で検索する |
+| 探したい教科書を見つけにくい | 教科書・授業・学部で検索する。学科・学年・年度・教材種別・カテゴリのfrontend検索は**現状実装未定** |
 | 本人の情報に従っておすすめをしたい | 本人の授業・学部・学科・学年からおすすめ表示 |
 | 実決済や個人情報保存によるリスクを避けたい | デモ認証、仮想ポイント、仮想ユーザー、架空の個人情報、サンプル画像、画面内通知で代替する |
 
@@ -54,7 +54,7 @@
 | 利用者 | 説明 | 主な操作 |
 |---|---|---|
 | 慶應生想定ユーザー | デモ認証または仮想セッション上の学生ロール | 教科書検索 / 出品 / 購入リクエスト / 承諾 |
-| 出品者 | 教科書を売りたい、または譲渡したいユーザー | 教科書投稿 / 価格変更 / コメント対応 / 取引承諾 |
+| 出品者 | 教科書を売りたい、または譲渡したいユーザー | 教科書投稿 / コメント対応 / 取引承諾。frontendからの価格変更・取り下げは**現状実装未定** |
 | 購入者 | 教科書を探しているユーザー | 検索 / 詳細確認 / 購入リクエスト / 取引承諾 |
 | 管理者 | 不適切投稿やトラブル対応を行う担当者 | 投稿確認 / ユーザー確認 / 取引状況確認 |
 
@@ -63,15 +63,18 @@
 MVPでは、以下を最小構成とする。
 
 - デモユーザーまたは仮想セッションによる利用開始
+- 実在する連絡先を使わないデモアカウント追加（初期残高5,000ポイント）
 - 教科書の出品
 - 教科書の一覧表示・検索
 - 教科書詳細表示
 - 購入リクエスト
 - 購入者・出品者の双方承諾による取引成立
-- 出品ステータスの変更
-- サンプル画像URLまたはデモ用画像URLの登録
+- 出品ステータスの変更（出品編集・取り下げのfrontend操作は**現状実装未定**）
+- サンプル画像URLまたはデモ用画像URLの登録（frontend入力欄は**現状実装未定**）
 - 仮想ポイント残高の表示
 - 仮想ポイントによる支払い風UI
+- 教科書詳細の簡易コメント
+- コメント・取引成立の画面内デモ通知
 
 以下は拡張候補とする。
 
@@ -80,7 +83,6 @@ MVPでは、以下を最小構成とする。
 - 複数枚の写真投稿
 - カテゴリマスタ
 - レビュー機能
-- 通知機能
 - 管理者画面
 
 以下は本プロジェクトでは実装しない。
@@ -91,37 +93,54 @@ MVPでは、以下を最小構成とする。
 - 実在するメールアドレス、電話番号、住所、学生証、本人確認書類の入力・保存
 - 架空データでない個人情報の保存
 
+#### 2.4.1 現状実装未定の範囲
+
+次の項目はREADME上の設計・要件として残すが、現在のfrontendまたはデータモデルでは利用できず、**現状実装未定**とする。
+
+- 出品フォームからのサンプル画像URL・デモ用画像URL登録
+- 学科、学年、使用年度、教材種別、カテゴリを指定するfrontend詳細検索
+- frontendからの出品編集・取り下げ
+- frontendからのプロフィールアイコン登録・編集
+- frontendのページ移動、および51件目以降の一覧表示
+- 5件目以降の取引・通知の画面表示と、画面からの取引承諾
+- 架空メール、電話番号、住所、学生証番号、本人確認書類の保存・暗号化・マスキング・監査ログ
+- 401 / 403などの認証・認可エラーをRender Logsで確認するためのログ出力
+
+backendに存在する画像URL、詳細検索、Book更新・取り下げ、アイコンURL、APIページングの各APIは利用可能だが、対応するfrontend操作は**現状実装未定**である。
+
 ### 2.5 デモ公開・安全方針
 
 外部に見せる可能性があるデモとして、セキュリティリスクや個人情報保護上のリスクがある機能は、実データを扱わない代替実装にする。
-ただし、架空のメール、電話番号、住所、学生証番号、本人確認書類データは保存対象にし、セキュリティ実装は実データを扱う場合と同等にする。
+ただし、架空のメール、電話番号、住所、学生証番号、本人確認書類データは将来の保存対象とし、セキュリティ実装は実データを扱う場合と同等にする。この保存機能と同等保護は**現状実装未定**であり、現在のAPIはこれらの入力を拒否する。
 
 | 対象 | デモでの扱い | 実装禁止事項 |
 |---|---|---|
 | 支払い | 仮想ポイントの加減算と支払い完了風の画面で代替する | 実決済API、カード番号入力、カードトークン保存、銀行口座登録 |
 | 認証 | デモユーザー、仮想セッション、開発用ロールで代替し、必要な識別情報は架空データで保存する | 実在メールアドレス必須化、大学認証の本番接続、実本人確認書類アップロード |
-| プロフィール | ニックネーム、学部、学年、架空メール、架空電話番号、架空住所、架空学生証番号を扱う | 実在する氏名、住所、電話番号、生年月日、学生証番号の保存 |
+| プロフィール | ニックネーム、学部、学年を扱う。架空メール、架空電話番号、架空住所、架空学生証番号は**現状実装未定** | 実在する氏名、住所、電話番号、生年月日、学生証番号の保存 |
 | 連絡 | 画面内通知、デモ通知ログで代替する | 実メール送信、SMS送信、外部チャット連携 |
-| 本人確認書類 | 架空の本人確認書類データ、サンプル画像、またはダミーメタデータを保存する | 実本人確認書類、学生証実画像、EXIF付き実写真の保存 |
-| 画像 | サンプル画像またはデモ用URLを使う | EXIF付き実写真の保存、個人が写る画像の必須アップロード |
+| 本人確認書類 | 架空の本人確認書類データ、サンプル画像、またはダミーメタデータの保存は**現状実装未定** | 実本人確認書類、学生証実画像、EXIF付き実写真の保存 |
+| 画像 | 固定サンプル画像を使う。出品時のサンプル画像URLまたはデモ用URL登録は**現状実装未定** | EXIF付き実写真の保存、個人が写る画像の必須アップロード |
 | 管理機能 | デモデータ上の状態変更で代替する | 実ユーザー停止、実個人情報閲覧、監査ログへの個人情報保存 |
 
-架空データであっても、セキュリティ設計は本番データと同等に行う。認可チェック、入力値検証、保存時暗号化、画面表示時のマスキング、CSRF/XSS対策、CORS制御、エラー情報の制限、操作ログ、保存期間、削除手段の設計は、実データを扱う場合と同じ前提で設計する。
+架空データであっても、セキュリティ設計は本番データと同等に行う。認可チェック、入力値検証、保存時暗号化、画面表示時のマスキング、CSRF/XSS対策、CORS制御、エラー情報の制限、操作ログ、保存期間、削除手段の設計は、実データを扱う場合と同じ前提で設計する。ただし、架空個人情報の保存・暗号化・マスキング・監査ログ・保存期間・削除手段は**現状実装未定**である。
 
 ---
 
 ## 3. 採用技術
 
+現在の無料公開用MVPは、frontendを静的SPA、backendをExpress、データ層をNode.js組み込みSQLiteのインメモリDBとして実装する。Prisma / MySQLのモデル、migration、seedはローカルで永続DBを検証するための任意構成として残すが、Render公開構成では使用しない。
+
 | 区分 | 技術 | 用途 |
 |---|---|---|
-| フロントエンド | Next.js | 画面表示、ルーティング、API呼び出し |
-| UI実装 | React / TypeScript | コンポーネント単位のUI構築、型安全な画面実装 |
-| スタイリング | CSS / CSS Modules / Tailwind CSSなど | 画面デザイン |
+| フロントエンド | HTML / CSS / JavaScript | 画面表示、検索、フォーム、API呼び出し |
+| APIクライアント | Fetch API | Express REST APIへの同一オリジン通信 |
+| スタイリング | CSS | 画面デザイン |
 | バックエンド実行環境 | Node.js | サーバーサイドJavaScript/TypeScript実行環境 |
 | バックエンドフレームワーク | Express | REST APIの実装 |
-| ORM | Prisma | TypeScriptからMySQLを安全に操作するためのORM |
-| データベース | MySQL | User / Book / Transactionデータの永続化 |
-| デプロイ | Render.com | フロントエンド、API、MySQLのホスティング |
+| 公開用データベース | Node.js `node:sqlite` / SQLite `:memory:` | User / Book / Transaction / Comment / Notificationの一時共有とトランザクション制御 |
+| 任意のローカル永続DB | Prisma / MySQL | 明示承諾後のmigration・seed・永続化検証だけに使用 |
+| デプロイ | Render.com Free Web Service | frontendとAPIを単一サービスで配信。Persistent Diskは使用しない |
 | バージョン管理 | Git / GitHub | ソースコード管理 |
 | パッケージ管理 | npm | 依存関係管理 |
 
@@ -129,11 +148,11 @@ MVPでは、以下を最小構成とする。
 
 | 技術 | 選定理由 |
 |---|---|
-| Next.js | 画面単位のルーティング、ReactによるUI構築、API連携がしやすい |
+| 静的SPA | ビルド時の外部依存を抑え、Expressから画面とAPIを同一オリジンで配信できる |
 | Express | REST APIを明確に分離し、ルーティングとコントローラーを実装しやすい |
-| Prisma | SQLを直接書く量を減らし、User / Book / Transactionの関係を型付きで扱える |
-| MySQL | リレーショナルデータとしてユーザー、教科書、取引の関係を扱いやすい |
-| Render | GitHub連携によるデプロイ、Web Service、Persistent Diskを用いたMySQL構成が利用できる |
+| インメモリSQLite | 外部DB、Persistent Disk、課金、カード登録なしでリレーション・制約・トランザクションを再現でき、終了時に全デモデータを破棄できる |
+| Prisma / MySQL | ローカル永続化を別モードで検証するときだけ使用し、公開無料構成からは切り離す |
+| Render | Free Web Service 1個だけを使い、サービス停止時にもインメモリデータを破棄する |
 
 ---
 
@@ -143,9 +162,9 @@ MVPでは、以下を最小構成とする。
 
 | 層 | 役割 | 使用技術 | 主な責務 |
 |---|---|---|---|
-| プレゼンテーション層 | ユーザーとの入出力 | Next.js / React / TypeScript / CSS | 検索画面、出品フォーム、購入・承諾ボタン、プロフィール、ポイント残高表示 |
-| アプリケーション層 | 業務処理・API提供 | Node.js / Express / Prisma | 出品処理、検索処理、購入リクエスト、双方承諾確認、状態更新 |
-| データ層 | データ永続化 | MySQL | User / Book / Transactionの保存、検索、整合性管理 |
+| プレゼンテーション層 | ユーザーとの入出力 | HTML / CSS / JavaScript | 検索画面、出品フォーム、購入・承諾ボタン、プロフィール、ポイント残高表示 |
+| アプリケーション層 | 業務処理・API提供 | Node.js / Express / TypeScript | 認証・認可、出品、検索、購入リクエスト、双方承諾、状態更新 |
+| データ層 | デモ実行中だけの共有データ | SQLite `:memory:` | User / Book / Transaction / Comment / Notificationの制約・検索・原子的更新 |
 
 ### 4.1 3層構造図
 
@@ -153,7 +172,7 @@ MVPでは、以下を最小構成とする。
 flowchart TB
     User[慶應生想定ユーザー / ブラウザ]
 
-    subgraph Presentation["プレゼンテーション層: Next.js"]
+    subgraph Presentation["プレゼンテーション層: 静的SPA"]
         Register[デモアカウント画面]
         Profile[プロフィール画面]
         Search[検索画面]
@@ -163,18 +182,18 @@ flowchart TB
         ApiClient[API Client]
     end
 
-    subgraph Application["アプリケーション層: Node.js + Express + Prisma"]
+    subgraph Application["アプリケーション層: Node.js + Express"]
         Routes[Routes]
         Controllers[Controllers]
         Services[Services / Business Logic]
-        PrismaClient[Prisma Client]
+        Store[Ephemeral Store]
         AuthLogic[デモ認証・仮想セッション]
         TransactionLogic[双方承諾ロジック]
         RankingLogic[関連度ランキング]
     end
 
-    subgraph Data["データ層: MySQL"]
-        DB[(MySQL)]
+    subgraph Data["データ層: 一時SQLite"]
+        DB[(SQLite :memory:)]
         UserTable[User]
         BookTable[Book]
         TransactionTable[Transaction]
@@ -198,8 +217,8 @@ flowchart TB
     Services --> AuthLogic
     Services --> TransactionLogic
     Services --> RankingLogic
-    Services --> PrismaClient
-    PrismaClient --> DB
+    Services --> Store
+    Store --> DB
 
     DB --> UserTable
     DB --> BookTable
@@ -221,7 +240,7 @@ flowchart TB
   - 出品中
   - 交渉中
   - 売却済み
-  - 取り下げ
+  - 取り下げ（frontend操作は**現状実装未定**）
 - APIへリクエストを送る
 - APIから受け取った検索結果を画像付きで表示する
 
@@ -260,7 +279,7 @@ DB操作は必ずExpress APIを経由する。
 
 | 区分 | 内容 |
 |---|---|
-| input | 教科書のサンプル画像、仮想ポイント価格、説明、対象授業、使用年度、必須教材/参考書、学部、学科、対象学年 |
+| input | 仮想ポイント価格、説明、対象授業、使用年度、必須教材/参考書、学部、学科、対象学年。サンプル画像入力は**現状実装未定** |
 | logic | 入力内容を検証し、Bookとして保存する。出品者IDをseller_idに紐づける |
 | output | 出品完了画面を表示し、教科書詳細画面へ遷移できるようにする |
 
@@ -307,22 +326,20 @@ DB操作は必ずExpress APIを経由する。
 ```mermaid
 flowchart LR
     Browser[Browser]
-    Frontend[Next.js App on Render]
-    Backend[Express API on Render]
-    Database[(MySQL on Render)]
+    Service[Render Free Web Service<br/>Express + static frontend + REST API]
+    Database[(Process memory<br/>SQLite :memory:)]
 
-    Browser -->|HTTPS| Frontend
-    Frontend -->|HTTPS / REST| Backend
-    Backend -->|Prisma / MySQL Protocol| Database
+    Browser -->|HTTPS / Fetch API| Service
+    Service -->|node:sqlite| Database
 ```
 
 ### 5.2 Render上のサービス構成
 
 | サービス名 | 種別 | 技術 | 役割 | 公開範囲 |
 |---|---|---|---|---|
-| `keio-book-frontend` | Web Service または Static Site | Next.js | 画面配信 | Public |
-| `keio-book-api` | Web Service | Node.js / Express / Prisma | API提供 | Public |
-| `keio-book-mysql` | Web Service + Persistent Disk または MySQL Template | MySQL | データ保存 | Private推奨 |
+| `keio-book-demo` | Free Web Service | Node.js / Express / SQLite `:memory:` | 静的画面、REST API、一時DBを単一プロセスで提供 | Public |
+
+RenderのFree Web ServiceではPersistent Diskを利用しない。外部MySQLサービス、Render上のMySQL、カード登録、従量課金設定は作成しない。複数ブラウザは同じWeb Serviceプロセスが動作している間だけ一時DBを共有する。
 
 ### 5.3 ディレクトリ構成案
 
@@ -412,16 +429,16 @@ project-root/
 
 | 機能ID | 機能名 | 概要 | 利用者 | 優先度 |
 |---|---|---|---|---|
-| F-001 | デモアカウント利用開始 | デモユーザーまたは仮想セッションで利用を開始する | 慶應生想定ユーザー | 高 |
-| F-002 | デモプロフィール表示・編集 | ニックネーム、学部、学科、学年、デモアイコン、仮想ポイント残高を表示・編集する | 慶應生想定ユーザー | 中 |
-| F-003 | 教科書出品 | 写真、価格、説明、授業名、使用年度などを登録する | 出品者 | 高 |
+| F-001 | デモアカウント追加・利用開始 | 架空プロフィールのデモユーザーを追加し、仮想セッションで利用を開始する。追加時は5,000ポイントを固定付与する | 慶應生想定ユーザー | 高 |
+| F-002 | デモプロフィール表示・編集 | ニックネーム、学部、学科、学年、仮想ポイント残高を表示・編集する。デモアイコン編集は**現状実装未定** | 慶應生想定ユーザー | 中 |
+| F-003 | 教科書出品 | 価格、説明、授業名、使用年度などを登録する。写真・画像URLのfrontend登録は**現状実装未定** | 出品者 | 高 |
 | F-004 | 教科書一覧表示 | 出品中の教科書を一覧表示する | 慶應生想定ユーザー | 高 |
-| F-005 | 教科書検索 | 教科書名、授業、学部、学科、学年、年度、教材種別で検索する | 慶應生想定ユーザー | 高 |
+| F-005 | 教科書検索 | 教科書名、授業、学部で検索する。学科、学年、年度、教材種別、カテゴリのfrontend検索UIは**現状実装未定** | 慶應生想定ユーザー | 高 |
 | F-006 | 教科書詳細表示 | 出品情報、写真、価格、使用授業、使用年度、ステータスを表示する | 慶應生想定ユーザー | 高 |
 | F-007 | 購入リクエスト | 購入希望者が出品者へ購入リクエストを送る | 購入者 | 高 |
 | F-008 | 取引承諾 | 購入者・出品者が取引を承諾する | 購入者 / 出品者 | 高 |
 | F-009 | 取引成立判定 | 双方承諾済みの場合のみ取引を成立させる | システム | 高 |
-| F-010 | ステータス管理 | 出品中、交渉中、売却済み、取り下げを管理する | システム / 出品者 | 高 |
+| F-010 | ステータス管理 | 取引に伴う出品中、交渉中、売却済みを管理する。出品者による編集・取り下げのfrontend操作は**現状実装未定** | システム / 出品者 | 高 |
 | F-011 | コメント対応 | 値下げ相談などのコメントを扱う | 購入者 / 出品者 | 中 |
 | F-012 | 関連度ランキング | ユーザー情報や検索条件に応じて関連度順に表示する | システム | 中 |
 | F-013 | デモ通知表示 | 取引成立後に購入者・出品者へ画面内のデモ通知を表示する | システム | 低 |
@@ -435,7 +452,7 @@ project-root/
 |---|---|
 | アクター | 慶應生想定ユーザー |
 | 事前条件 | デモセッションが有効である |
-| 基本フロー | 1. 検索画面を開く<br>2. 教科書名、授業名、学部、学科、学年、年度、必須教材/参考書を入力する<br>3. Next.jsがExpress APIへ検索条件を送信する<br>4. ExpressがPrisma経由でMySQLを検索する<br>5. ユーザー属性との関連度を計算する<br>6. 検索結果を画像付きで表示する |
+| 基本フロー | 1. 検索画面を開く<br>2. 教科書名、授業名、学部を入力する。学科、学年、年度、必須教材/参考書、カテゴリのfrontend入力は**現状実装未定**<br>3. 静的SPAがExpress APIへ検索条件を送信する<br>4. Expressが一時SQLiteを検索する<br>5. ユーザー属性との関連度を計算する<br>6. 検索結果を画像付きで表示する |
 | 代替フロー | 検索結果が0件の場合、0件メッセージを表示する |
 | 例外フロー | APIエラー時、エラーメッセージを表示する |
 
@@ -445,7 +462,7 @@ project-root/
 |---|---|
 | アクター | 出品者 |
 | 事前条件 | デモセッションが有効である |
-| 基本フロー | 1. 教科書投稿画面を開く<br>2. 写真、価格、説明、対象授業、使用年度、学部、学科、学年を入力する<br>3. 出品ボタンを押す<br>4. Express APIが入力値を検証する<br>5. BookとしてMySQLに保存する<br>6. 出品完了画面を表示する |
+| 基本フロー | 1. 教科書投稿画面を開く<br>2. 価格、説明、対象授業、使用年度、学部、学科、学年を入力する。サンプル画像・画像URLのfrontend入力は**現状実装未定**<br>3. 出品ボタンを押す<br>4. Express APIが入力値を検証する<br>5. Bookとして一時SQLiteに保存する<br>6. 出品完了画面を表示する |
 | 代替フロー | 写真がない場合、画像なし表示で登録する |
 | 例外フロー | 価格が不正、必須項目が空の場合、400エラーを返す |
 
@@ -475,16 +492,16 @@ project-root/
 
 | 区分 | 要件 |
 |---|---|
-| 可用性 | Render上で常時アクセス可能な構成を目標とする |
+| 可用性 | Render無料サービスの停止・初回起動遅延を許容し、デモ用途のアクセス性を確保する |
 | 性能 | 通常検索は2秒以内の応答を目標とする |
 | セキュリティ | デモ認証・仮想セッションで利用者ロールを制限し、実在個人情報や実決済情報は扱わない |
 | 保守性 | 3層構造により、画面・API・DBを分離する |
 | 拡張性 | User / Book / Transactionを中心にしつつ、Comment、Lesson、BookImage、Categoryへ拡張できる設計にする |
-| 可観測性 | Render LogsでAPIエラー、DB接続エラー、認証エラーを確認できるようにする |
+| 可観測性 | Render Logsで500系APIエラーとDB接続エラーを確認する。401 / 403などの認証・認可エラーログは**現状実装未定** |
 | データ整合性 | Transaction成立時にBookステータス更新を同一トランザクションで処理する |
-| 個人情報保護 | 実在する氏名、メールアドレス、電話番号、住所、学生証番号、本人確認書類、カード情報は保存せず、必要な項目は架空デモデータとして保存する。架空データも実個人情報と同等に保護する |
+| 個人情報保護 | 実在する氏名、メールアドレス、電話番号、住所、学生証番号、本人確認書類、カード情報は保存しない。架空個人情報の保存と実個人情報同等の保護は**現状実装未定**で、現在は対象入力を拒否する |
 | 秘密情報管理 | DB接続情報や認証シークレットを環境変数で管理する |
-| バックアップ | デモデータの永続化・スナップショット・リセット方針を定義する |
+| バックアップ | 一時デモデータはバックアップせず、全ブラウザ終了またはサービス停止時にseedへ戻す |
 
 ---
 
@@ -496,9 +513,9 @@ project-root/
 |---|---|---|---|
 | UI-001 | トップページ | `/` | アプリ概要、検索導線、出品導線を表示 |
 | UI-002 | デモアカウント画面 | `/register` | デモユーザーまたは仮想セッションで利用を開始する |
-| UI-003 | プロフィール画面 | `/profile` | ニックネーム、学部、学科、学年、デモアイコン、仮想ポイント残高を表示する |
+| UI-003 | プロフィール画面 | `/profile` | ニックネーム、学部、学科、学年、仮想ポイント残高を表示する。デモアイコン編集は**現状実装未定** |
 | UI-004 | 教科書一覧画面 | `/books` | 出品中の教科書を一覧表示する |
-| UI-005 | 検索画面 | `/search` | 教科書名、授業、学部、学科、学年、年度で検索する |
+| UI-005 | 検索画面 | `/search` | 教科書名、授業、学部で検索する。学科、学年、年度、教材種別、カテゴリは**現状実装未定** |
 | UI-006 | 教科書投稿画面 | `/books/new` | 教科書を出品する |
 | UI-007 | 教科書詳細画面 | `/books/[id]` | 教科書の詳細、写真、価格、出品者、使用授業を表示する |
 | UI-008 | 購入画面 | `/transactions/[id]` | 購入リクエスト、承諾状態、成立状態を表示する |
@@ -547,7 +564,7 @@ flowchart LR
 | 学年 | select | ✓ | 1年、2年、3年、4年、院生など |
 | 学部 | select | ✓ | 文、経済、法、商、理工など |
 | 学科 | text/select | - | 学科または専攻 |
-| アイコン | select/url | - | デモ用アイコン。個人写真のアップロードは求めない |
+| アイコン | select/url | - | デモ用アイコン。frontend入力・編集は**現状実装未定**。個人写真のアップロードは求めない |
 
 #### UI-005: 検索画面
 
@@ -555,10 +572,10 @@ flowchart LR
 |---|---|---|---|
 | キーワード | text | - | 教科書名・授業名の検索 |
 | 学部 | select | - | 使用学部 |
-| 学科 | select | - | 使用学科 |
-| 学年 | select | - | 対象学年 |
-| 年度 | select/input | - | 使用年度 |
-| 教材種別 | select | - | 必須教材 / 参考書 |
+| 学科 | select | - | 使用学科。frontend入力は**現状実装未定** |
+| 学年 | select | - | 対象学年。frontend入力は**現状実装未定** |
+| 年度 | select/input | - | 使用年度。frontend入力は**現状実装未定** |
+| 教材種別 | select | - | 必須教材 / 参考書。frontend検索入力は**現状実装未定** |
 | 検索ボタン | button | - | 検索APIを呼び出す |
 
 #### UI-006: 教科書投稿画面
@@ -566,7 +583,7 @@ flowchart LR
 | 項目名 | 種別 | 必須 | 説明 |
 |---|---|---|---|
 | 教科書名 | text | ✓ | 出品する教科書名 |
-| 写真 | file/url | - | 教科書画像 |
+| 写真 | file/url | - | 教科書画像。frontend入力は**現状実装未定** |
 | 金額 | number | ✓ | 仮想ポイント価格。0ポイントの場合は譲渡扱い |
 | 説明 | textarea | - | 書き込み、汚れ、版、注意事項など |
 | 対象授業 | text | ✓ | どの授業で使われたか |
@@ -591,6 +608,8 @@ flowchart LR
 | 出品者 | text | - | 出品者名 |
 | 購入リクエストボタン | button | - | POST `/transactions`を呼び出し、仮想ポイント取引を開始する |
 | コメント欄 | textarea/list | - | 値下げ相談など。MVPでは簡易メモ、拡張時にCommentテーブル化 |
+
+frontendの一覧ページ移動と全件表示は**現状実装未定**である。現在は各APIの先頭50件だけを取得し、取引・通知は先頭4件だけを画面表示するため、5件目以降の取引承諾・通知確認も**現状実装未定**である。
 
 ---
 
@@ -640,13 +659,28 @@ flowchart LR
 | API-004 | GET | `/api/books` | 教科書一覧・検索 | F-004 / F-005 |
 | API-005 | GET | `/api/books/:id` | 教科書詳細取得 | F-006 |
 | API-006 | POST | `/api/books` | 教科書を出品する | F-003 |
-| API-007 | PATCH | `/api/books/:id` | 教科書情報・価格・ステータスを更新する | F-003 / F-010 |
-| API-008 | DELETE | `/api/books/:id` | 出品を取り消す | F-010 |
+| API-007 | PATCH | `/api/books/:id` | 教科書情報・価格・ステータスを更新する。backend実装済み、frontend操作は**現状実装未定** | F-003 / F-010 |
+| API-008 | DELETE | `/api/books/:id` | 出品を取り消す。backend実装済み、frontend操作は**現状実装未定** | F-010 |
 | API-009 | POST | `/api/transactions` | 購入リクエストを送る | F-007 |
 | API-010 | GET | `/api/transactions/:id` | 取引状態を取得する | F-008 |
 | API-011 | PATCH | `/api/transactions/:id` | 取引を承諾・更新する | F-008 / F-009 |
+| API-012 | GET | `/api/books/:id/comments` | 教科書のコメント一覧を取得する | F-011 |
+| API-013 | POST | `/api/books/:id/comments` | 教科書へ簡易コメントを投稿する | F-011 |
+| API-014 | GET | `/api/notifications` | 自分宛ての画面内デモ通知を取得する | F-013 |
 
 ### 9.4 API詳細
+
+#### API-001: デモアカウント追加・利用開始
+
+`POST /api/auth/register` は、ニックネーム、学部、学科・専攻、学年、任意のデモアイコンURLだけを受け取る。デモアイコンURLのbackend受付は実装済みだが、frontend入力・編集は**現状実装未定**である。サーバーが変更不能な `demoUserKey` と初期残高5,000ポイントを付与し、2時間有効な署名付きBearerデモセッションを返す。実在メール、電話番号、住所、パスワード、本人確認情報、カード・銀行情報などの未対応フィールドは `400 VALIDATION_ERROR` で拒否する。追加アカウントは合計20件までとする。
+
+認証が必要なAPIは、次のヘッダーを必須とする。トークンは `SESSION_SECRET` のHMAC-SHA256署名で改ざんを検知し、Cookieや外部認証サービスは使用しない。
+
+```text
+Authorization: Bearer <demo-session-token>
+```
+
+`GET /api/users/me` は自分のデモプロフィールと仮想ポイント残高を返し、`PATCH /api/users/me` は登録時と同じ安全なプロフィール項目だけを更新する。
 
 #### API-004: 教科書一覧・検索
 
@@ -795,13 +829,15 @@ GET /api/books?q=経済学&faculty=経済学部&year=1&usedYear=2025&materialTyp
 9. 画面内のデモ通知を作成する。
 10. 完了画面用のレスポンスを返す。
 
+現在のbackend実装では、Transaction、Book、購入者・出品者残高、双方の `TRANSACTION_COMPLETED` 通知を、選択中のstorageに対応する単一DBトランザクションで更新する。無料公開ではSQLite transaction、任意のローカルMySQLモードではPrisma transactionを使用する。`GET /api/notifications` は認証中ユーザー自身の通知だけを返す。
+
 ---
 
 ## 10. データベース設計
 
 ### 10.1 ER図
 
-MVPでは、User、Book、Transactionの3テーブルを中心にする。
+MVPでは、User、Book、Transaction、Comment、Notificationの5テーブルを使用する。
 
 ```mermaid
 erDiagram
@@ -873,6 +909,8 @@ erDiagram
 
 #### User
 
+`dummy_email`、`dummy_phone`、`dummy_address`、`dummy_student_id`、`dummy_identity_document_ref`は設計上の将来カラムであり、公開用一時SQLite・登録APIへの実装は**現状実装未定**である。現在はこれらの入力を保存せず、APIで拒否する。
+
 | カラム名 | 型 | PK | FK | NOT NULL | UNIQUE | 説明 |
 |---|---|---|---|---|---|---|
 | id | INT AUTO_INCREMENT | ✓ | - | ✓ | ✓ | ユーザーID |
@@ -929,7 +967,7 @@ erDiagram
 | updated_at | DATETIME | - | - | ✓ | - | 更新日時 |
 | completed_at | DATETIME | - | - | - | - | 取引成立日時 |
 
-### 10.4 Prisma Schema例
+### 10.4 任意のローカルMySQL用Prisma Schema例
 
 ```prisma
 generator client {
@@ -1059,8 +1097,7 @@ enum MaterialType {
 
 ### 10.6 拡張用テーブル候補
 
-MVPはUser、Book、Transactionの3テーブルで開始する。  
-ただし、機能拡張時は以下のテーブルを追加できる設計にしておく。
+現在はUser、Book、Transactionと成立通知用Notificationを実装している。以下は今後の拡張候補とする。
 
 | テーブル名 | 目的 | 追加する理由 |
 |---|---|---|
@@ -1069,13 +1106,16 @@ MVPはUser、Book、Transactionの3テーブルで開始する。
 | BookImage | 複数枚の写真投稿 | 表紙、書き込み、汚れなどを複数画像で見せるため |
 | Category | カテゴリ管理 | 語学、専門科目、一般教養などをマスタ化するため |
 | Review | 取引後評価 | 安心して取引できるユーザー評価を作るため |
-| Notification | 通知管理 | 承諾、コメント、取引成立を通知するため |
+
+### 10.7 デモseed
+
+`backend/prisma/seed.ts` は5架空ユーザー、4架空Book、交渉中と成立済みのTransaction各1件、成立通知2件を冪等に作成する。実在メール、電話番号、住所、学生証・本人確認情報、認証情報、決済情報は含めない。既存のseedユーザーがいる場合はプロフィールだけを同期し、取引後の仮想ポイント残高は巻き戻さない。手動確認用の同等SQLは `database/seed.sql` に置く。
 
 ---
 
 ## 11. バックエンド設計
 
-### 11.1 Express + Prisma構成
+### 11.1 Express + Storage構成
 
 ```text
 backend/src/
@@ -1084,14 +1124,20 @@ backend/src/
 ├── routes/
 │   ├── authRoutes.ts
 │   ├── bookRoutes.ts
+│   ├── commentRoutes.ts
+│   ├── demoRoutes.ts
 │   └── transactionRoutes.ts
 ├── controllers/
 │   ├── authController.ts
 │   ├── bookController.ts
+│   ├── commentController.ts
+│   ├── demoController.ts
 │   └── transactionController.ts
 ├── services/
 │   ├── authService.ts
 │   ├── bookService.ts
+│   ├── commentService.ts
+│   ├── ephemeralLifecycle.ts
 │   ├── rankingService.ts
 │   └── transactionService.ts
 ├── repositories/
@@ -1103,6 +1149,7 @@ backend/src/
 │   ├── errorHandler.ts
 │   └── validateRequest.ts
 └── lib/
+    ├── ephemeralStore.ts
     └── prisma.ts
 ```
 
@@ -1110,48 +1157,48 @@ backend/src/
 
 | MVC | 本設計での対応 | 内容 |
 |---|---|---|
-| Model | Prisma Model / Repository | User、Book、TransactionをDBとして扱う |
-| View | Next.js Page / Component | 検索画面、投稿画面、購入画面など |
+| Model | EphemeralStore / Prisma Model / Repository | User、Book、Transaction、Comment、NotificationをDBとして扱う |
+| View | 静的SPA | 検索画面、投稿画面、購入画面など |
 | Controller | Express Controller | HTTPリクエストを受け取り、Serviceを呼び出す |
 
 本設計は、MVCを3層構造に対応させると以下のように整理できる。
 
 - View: プレゼンテーション層
 - Controller: アプリケーション層の入口
-- Model: データ層およびPrisma Model
+- Model: データ層、EphemeralStore、任意のPrisma Model
 
 ### 11.3 処理の流れ
 
 ```mermaid
 sequenceDiagram
     participant Browser as Browser
-    participant Next as Next.js
+    participant SPA as Static SPA
     participant API as Express API
     participant Service as TransactionService
-    participant Prisma as Prisma
-    participant DB as MySQL
+    participant Store as EphemeralStore
+    participant DB as SQLite memory DB
 
-    Browser->>Next: 承諾ボタンを押す
-    Next->>API: PATCH /api/transactions/:id
+    Browser->>SPA: 承諾ボタンを押す
+    SPA->>API: PATCH /api/transactions/:id + Bearer token
     API->>API: 認証・認可確認
     API->>Service: approveTransaction(transactionId, userId)
-    Service->>Prisma: Transaction取得
-    Prisma->>DB: SELECT transaction
-    DB-->>Prisma: transaction
-    Prisma-->>Service: transaction
+    Service->>Store: Transaction取得
+    Store->>DB: parameter binding済みSELECT
+    DB-->>Store: transaction
+    Store-->>Service: transaction
     Service->>Service: buyer/seller判定
-    Service->>Prisma: 承諾フラグ更新
-    Prisma->>DB: UPDATE transaction
+    Service->>Store: BEGIN IMMEDIATE / 承諾更新
+    Store->>DB: UPDATE transaction
     Service->>Service: buyerApproved && sellerApproved を確認
     alt 双方承諾済み
-        Service->>Prisma: Transaction COMPLETED / Book SOLD
-        Prisma->>DB: UPDATE transaction, book
+        Service->>Store: Transaction COMPLETED / Book SOLD / points / notifications
+        Store->>DB: UPDATE transaction, book, users / INSERT notifications / COMMIT
         Service-->>API: completed
     else 片方のみ承諾済み
         Service-->>API: pending
     end
-    API-->>Next: JSON
-    Next-->>Browser: 状態表示
+    API-->>SPA: JSON
+    SPA-->>Browser: 状態表示
 ```
 
 ### 11.4 取引成立ロジック
@@ -1255,50 +1302,28 @@ function calculateRelatedScore(book, user, query) {
 
 ## 12. フロントエンド設計
 
-### 12.1 Next.js構成
+### 12.1 現在の静的SPA構成
 
 ```text
 frontend/
-├── app/
-│   ├── layout.tsx
-│   ├── page.tsx
-│   ├── register/
-│   │   └── page.tsx
-│   ├── profile/
-│   │   └── page.tsx
-│   ├── books/
-│   │   ├── page.tsx
-│   │   ├── new/
-│   │   │   └── page.tsx
-│   │   └── [id]/
-│   │       └── page.tsx
-│   ├── search/
-│   │   └── page.tsx
-│   └── transactions/
-│       ├── [id]/
-│       │   └── page.tsx
-│       └── [id]/
-│           └── complete/
-│               └── page.tsx
-├── components/
-│   ├── BookCard.tsx
-│   ├── BookForm.tsx
-│   ├── SearchForm.tsx
-│   ├── TransactionStatus.tsx
-│   ├── PurchaseButton.tsx
-│   └── ApprovalButton.tsx
-├── lib/
-│   └── api.ts
-└── types/
-    ├── user.ts
-    ├── book.ts
-    └── transaction.ts
+├── assets/
+├── src/
+│   ├── apiClient.js
+│   ├── app.js
+│   └── data.js
+├── tests/
+├── index.html
+├── server.mjs
+└── styles.css
 ```
 
 ### 12.2 API呼び出し方針
 
-- APIのURLは`NEXT_PUBLIC_API_BASE_URL`から取得する。
+- Expressからの配信時は同一オリジンの `/api` を使用する。
+- 4173番の単独静的サーバーでは、開発用に `http://127.0.0.1:4000/api` を使用する。
 - SQLやPrisma Clientはフロントエンドに書かない。
+- ドメインデータを `localStorage` または `sessionStorage` に保存しない。
+- `sessionStorage` は署名付きBearer token、有効期限、一時client IDだけに使用する。
 - 検索条件はクエリパラメータとして送信する。
 - POST/PATCH/DELETEは、成功時と失敗時の表示を明確に分ける。
 - 購入リクエストや承諾ボタンは二重送信を防止する。
@@ -1309,8 +1334,8 @@ frontend/
 | コンポーネント | 役割 |
 |---|---|
 | BookCard | 検索結果の1件を表示する |
-| SearchForm | 授業名、学部、学科、年度などの検索条件を入力する |
-| BookForm | 教科書の出品フォーム |
+| SearchForm | 授業名と学部を入力する。学科、学年、年度、教材種別、カテゴリは**現状実装未定** |
+| BookForm | 教科書の出品フォーム。画像URL、編集、取り下げ操作は**現状実装未定** |
 | BookDetail | 教科書詳細表示 |
 | PurchaseButton | 購入リクエストを送る |
 | ApprovalButton | 取引承諾を行う |
@@ -1323,7 +1348,7 @@ frontend/
 | AVAILABLE | 「出品中」バッジ、購入リクエストボタンを表示 |
 | NEGOTIATING | 「交渉中」バッジ、関係者のみ取引画面へ誘導 |
 | SOLD | 「売却済み」バッジ、購入リクエスト不可 |
-| CANCELLED | 「取り下げ」バッジ、一覧には原則表示しない |
+| CANCELLED | 「取り下げ」バッジ、一覧には原則表示しない。frontendからの取り下げ操作は**現状実装未定** |
 | Transaction PENDING | 双方承諾待ち表示 |
 | Transaction COMPLETED | 購入完了表示 |
 | Transaction CANCELLED | 取引キャンセル表示 |
@@ -1337,14 +1362,14 @@ frontend/
 | デモ利用者制限 | デモ認証または仮想セッションにより、購入者・出品者・管理者ロールを制限する |
 | 認証情報管理 | デモセッションシークレットや認証関連情報を環境変数で管理する |
 | 認可 | Book更新は出品者のみ、Transaction承諾は購入者または出品者のみ許可する |
-| SQLインジェクション対策 | Prismaを用い、文字列連結によるSQL生成を避ける |
+| SQLインジェクション対策 | 一時SQLiteはprepared statementのparameter binding、任意のMySQLはPrismaを使い、ユーザー入力をSQLへ文字列連結しない |
 | XSS対策 | ユーザー入力をHTMLとして直接描画しない |
 | CORS制御 | `FRONTEND_ORIGIN`に一致するOriginのみ許可する |
-| 画像投稿 | サンプル画像またはデモ用URLを基本とし、実写真アップロードを必須にしない。アップロードを入れる場合はファイル種類、サイズ、EXIF削除、保存先を制限する |
+| 画像投稿 | 固定サンプル画像を使用する。出品時のサンプル画像URL・デモ用URL入力は**現状実装未定**。アップロードを入れる場合はファイル種類、サイズ、EXIF削除、保存先を制限する |
 | エラー情報 | 本番環境では内部スタックトレースを返さない |
 | 仮想ポイント管理 | 残高更新をDBトランザクション内で処理する。仮想ポイントは換金不可で、実通貨・決済手段と接続しない |
-| 架空個人情報 | メール、電話番号、住所、学生証番号、本人確認書類が必要な画面では架空データを保存する。実在データは保存しない |
-| 架空個人情報の保護 | 架空データであっても実個人情報と同等に扱い、認可、保存時暗号化、表示時マスキング、監査ログ、保存期間、削除手段を設計する |
+| 架空個人情報 | メール、電話番号、住所、学生証番号、本人確認書類の架空データ保存は**現状実装未定**。現在は実在・架空を問わず対象項目をAPIで拒否する |
+| 架空個人情報の保護 | 対象データの保存時暗号化、表示時マスキング、監査ログ、保存期間、削除手段は**現状実装未定**。実装時は実個人情報と同等に扱う |
 | 支払い情報 | カード番号、有効期限、CVC、カード名義、決済トークン、銀行口座情報を入力・保存・送信しない |
 | 外部サービス | メール、SMS、決済、本人確認、大学認証などの本番外部サービスへ接続しない。必要な場合はモックで代替する |
 
@@ -1360,7 +1385,7 @@ frontend/
 | モック認証API | 本番認証に似たレスポンス形式を返すが、外部認証には接続しない | 拡張候補 |
 
 本番の大学認証、実在メール確認、実学生証アップロード、実本人確認書類アップロードは実装しない。
-学生証番号や本人確認書類が必要な体験は、架空番号、サンプル画像、ダミーメタデータを保存して表現する。
+学生証番号や本人確認書類が必要な体験は、将来、架空番号、サンプル画像、ダミーメタデータを保存して表現する。この保存機能は**現状実装未定**である。
 ただし、認可チェック、セッション期限、CSRF対策、ロール制御、エラー応答は本番に近い設計にする。
 
 ### 13.2 デモ決済・仮想ポイントについて
@@ -1425,85 +1450,92 @@ frontend/
 
 ## 15. デプロイ設計
 
-### 15.1 Renderデプロイ方針
+### 15.1 Render無料デプロイ方針
+
+公開デモはルートの `render.yaml` を使い、Render Free Web Serviceを1個だけ作る。Expressが `frontend/` の静的ファイルと `/api` を同一オリジンで配信し、データはサービスプロセス内のSQLite `:memory:`だけに保存する。
+
+`frontend/package.json` の `npm run build` は配信用JavaScriptと `server.mjs` の構文を検査し、単独static serverも `HOST` 未指定時に `0.0.0.0`へbindする。ただしRenderではfrontendを別サービスにせず、下記の統合Web Serviceから配信する。
 
 | 対象 | Renderサービス種別 | Build Command | Start Command |
 |---|---|---|---|
-| Next.js | Web Service または Static Site | `npm install && npm run build` | `npm run start` |
-| Express API | Web Service | `npm install && npx prisma generate && npm run build` | `npm start` |
-| MySQL | MySQL Template または Web Service + Persistent Disk | 構成に応じて指定 | 構成に応じて指定 |
+| frontend + Express API + 一時DB | Free Web Service | `npm ci --include=dev --prefix backend && npm run build` | `npm start` |
 
-### 15.2 本番環境の接続関係
+MySQL、Persistent Disk、外部DB、別frontendサービスは作成しない。有料プラン、カード登録、従量課金が必要になった場合はデプロイを中止する。無料サービスはアイドル時に停止するため初回表示が遅れることがあるが、停止時にはプロセスメモリのデータも破棄される。
+
+### 15.2 公開環境の接続関係
 
 ```mermaid
 flowchart TB
-    Frontend[Render: keio-book-frontend]
-    Backend[Render: keio-book-api]
-    MySQL[(Render: keio-book-mysql + Persistent Disk)]
+    Browser[Browser]
+    Service[Render Free Web Service<br/>Express + frontend]
+    SQLite[(SQLite :memory:)]
 
-    Frontend -->|NEXT_PUBLIC_API_BASE_URL| Backend
-    Backend -->|DATABASE_URL| MySQL
+    Browser -->|HTTPS / REST| Service
+    Service -->|node:sqlite| SQLite
 ```
 
 ### 15.3 Render環境変数設定
 
-#### frontend
-
-| Key | Value |
-|---|---|
-| `NEXT_PUBLIC_API_BASE_URL` | `https://keio-book-api.onrender.com/api` |
-
-#### backend
-
 | Key | Value |
 |---|---|
 | `NODE_ENV` | `production` |
-| `PORT` | Render側で指定されるポートを使用 |
-| `DATABASE_URL` | `mysql://USER:PASSWORD@HOST:3306/DATABASE` |
-| `FRONTEND_ORIGIN` | `https://keio-book-frontend.onrender.com` |
-| `SESSION_SECRET` | 任意の長いランダム文字列 |
-| `DEMO_PII_ENCRYPTION_KEY` | 架空個人情報を実データ同等に暗号化するためのキー |
-| `DEMO_MODE` | `true`を基本とする |
-| `DEMO_USER_SEED` | デモユーザー初期データを指定する場合に使用 |
+| `PORT` | Renderが設定する値を使用 |
+| `HOST` | `0.0.0.0` |
+| `DEMO_STORAGE_MODE` | `ephemeral` |
+| `SERVE_FRONTEND` | `true` |
+| `DEMO_MODE` | `true` |
+| `SESSION_SECRET` | Blueprintでランダム生成し、リポジトリへ保存しない |
 
-### 15.4 Prismaマイグレーション方針
+`DATABASE_URL` は無料公開モードでは設定しない。`DEMO_STORAGE_MODE=mysql` は、ユーザー承諾済みのローカルMySQL検証に限って使用する。
 
-| 環境 | コマンド | 用途 |
-|---|---|---|
-| 開発 | `npx prisma migrate dev` | ローカルDBにスキーマ変更を反映 |
-| 本番 | `npx prisma migrate deploy` | Render上のMySQLへ適用済みmigrationを反映 |
-| 共通 | `npx prisma generate` | Prisma Client生成 |
+### 15.4 一時DBの開始・共有・破棄
 
-### 15.5 デプロイ手順
+1. サイトへのアクセスでFree Web Serviceが起動すると、SQLite `:memory:`へschemaと架空seedを作成する。
+2. frontendは最初に `POST /api/demo/open` を呼び、一時クライアントIDを受け取る。
+3. 開いているブラウザは30秒ごとにheartbeatを送り、同じサービスプロセス内のデータを共有する。
+4. 最後のブラウザが閉じると `sendBeacon` で `POST /api/demo/close` を送り、DBをseed状態へ初期化する。
+5. 終了通知はブラウザ仕様上必ず届くとは限らないため、90秒間heartbeatがない場合にも初期化する。
+6. Renderがサービスを停止・再起動した場合はプロセスメモリごと破棄され、次回起動時にseedから始まる。
 
-1. GitHubにリポジトリを作成する。
-2. `frontend/`、`backend/`をpushする。
-3. RenderでGitHubリポジトリを接続する。
-4. MySQLサービスを作成し、永続化ディスクを設定する。
-5. Express API用Web Serviceを作成する。
-6. backendに`DATABASE_URL`などの環境変数を設定する。
-7. Express APIのBuild Commandに`prisma generate`を含める。
-8. 必要に応じて`prisma migrate deploy`を実行する。
-9. Next.js用サービスを作成する。
-10. frontendに`NEXT_PUBLIC_API_BASE_URL`を設定する。
-11. デプロイ後、API、DB、画面の疎通を確認する。
+画面の手動初期化は、他のブラウザの作業を消さないようactive clientが1つ以下の場合だけ許可する。同時接続client数はプロセスメモリ保護のため200件を上限とする。
 
-### 15.6 デプロイ後確認項目
+### 15.5 API運用保護
+
+- `/api` は1クライアントあたり1分180リクエストのインメモリrate limitを適用する。
+- rate limitの識別元IPは保存せず、プロセスごとのsaltを使ったSHA-256一時識別子だけをメモリへ保持する。
+- Books、Transactions、Comments、Notificationsの一覧は `page` と `pageSize` を受け取り、既定20件、最大50件とする。
+- frontendのページ移動、51件目以降の取得、5件目以降の取引・通知表示は**現状実装未定**とする。
+- 全リクエストに `X-Request-ID` を付与する。500系ログはrequest ID、method、固定route pattern、status、error codeだけをJSONで標準エラーへ出し、生path、body、query、token、IP、入力本文は記録しない。
+- `/api/health` はSQLiteまたはMySQLへ `SELECT 1` を実行する。接続できない場合は503を返す。
+
+これはデモ用であり永続性を保証しない。同時に開いている利用者間では共有できるが、全ブラウザ終了、通信断、サービス停止、再デプロイのいずれかで出品・取引・コメント・追加アカウントは失われる。
+
+### 15.6 デプロイ手順
+
+1. 変更をGitHubへpushする。
+2. RenderでNew Blueprintを選び、リポジトリの `render.yaml` を読み込む。
+3. サービスが `Free` であり、Persistent Disk、外部DB、カード登録、課金設定がないことを確認する。
+4. デプロイ後にトップページと `/api/health` を確認する。
+5. 2つのブラウザでアカウントを切り替え、出品・購入相談が共有されることを確認する。
+6. 全ブラウザを閉じた後、再度開いてseed状態へ戻ることを確認する。
+
+### 15.7 デプロイ後確認項目
 
 | 確認項目 | 確認内容 | 結果 |
 |---|---|---|
-| フロントエンド表示 | トップページが表示される | 未確認 |
-| API疎通 | `/api/health`が200を返す | 未確認 |
-| DB接続 | APIからMySQLに接続できる | 未確認 |
-| Prisma接続 | Prisma ClientがMySQLに接続できる | 未確認 |
-| 検索機能 | `/api/books?q=...`が動作する | 未確認 |
-| 出品機能 | `POST /api/books`でBookが保存される | 未確認 |
-| 購入リクエスト | `POST /api/transactions`でTransactionが作成される | 未確認 |
-| 双方承諾 | `PATCH /api/transactions/:id`で双方承諾時のみCOMPLETEDになる | 未確認 |
-| Book状態更新 | 取引成立後にBookがSOLDになる | 未確認 |
-| ログ | Renderログに重大エラーがない | 未確認 |
-| 実決済遮断 | カード番号、銀行口座、外部決済URLを入力・保存・送信できない | 未確認 |
-| 架空個人情報保存 | メール、電話番号、住所、学生証番号、本人確認書類は架空データとして保存され、実在データは保存されない | 未確認 |
+| フロントエンド表示 | トップページが表示される | ローカル確認済み / Render未確認 |
+| API疎通 | `/api/health`が200を返す | ローカル確認済み / Render未確認 |
+| DB probe | healthが`storage.status: up`と`probe: SELECT 1`を返す | 自動テスト確認済み / Render未確認 |
+| 一時DB | `storage.mode`が`ephemeral`である | ローカル確認済み / Render未確認 |
+| 同一オリジン | frontendとAPIを同じWeb Serviceが配信する | ローカル確認済み / Render未確認 |
+| 認証付き出品 | Bearer認証後の`POST /api/books`だけ成功する | 自動テスト・ローカルHTTP確認済み |
+| 取引制約 | 自己購入拒否、双方承諾、ポイント移動、SOLD更新が原子的に動く | 自動テスト確認済み |
+| 2利用者ブラウザ | 独立browser context間で出品・購入相談が共有される | Playwright確認済み / Render未確認 |
+| ページング | APIは既定20件、最大50件で件数情報を返す。frontendのページ移動は**現状実装未定** | API E2E確認済み / frontend未実装 |
+| rate limit | 上限超過時に429と`Retry-After`を返す | 自動テスト確認済み |
+| 終了時初期化 | 最終client close後にseed件数へ戻る | ローカルHTTP確認済み / Render未確認 |
+| 無料構成 | Free Web Service 1個で、Disk・外部DB・課金設定がない | 設定確認済み / Render未作成 |
+| 実決済遮断 | カード番号、銀行口座、外部決済URLを入力・保存・送信できない | 自動テスト確認済み |
 
 ---
 
@@ -1516,9 +1548,11 @@ flowchart TB
 | 画面テスト | デモ利用開始、検索、出品、購入、承諾、完了表示 |
 | APIテスト | 正常系、異常系、バリデーション、認可 |
 | DBテスト | User / Book / Transactionの作成・更新・外部キー制約 |
+| API E2E | 2利用者のsession、出品共有、自己購入拒否、双方承諾、ポイント移動、終了時reset |
+| ブラウザE2E | 2つの独立browser contextによる出品共有、自分の出品表示、購入相談 |
 | 取引ロジック | 双方承諾時のみTransactionがCOMPLETEDになる |
-| セキュリティテスト | デモ認証、認可、SQLインジェクション、XSS、実決済遮断、架空個人情報の同等保護 |
-| デプロイ確認 | 環境変数、Prisma migration、DB接続、ログ |
+| セキュリティテスト | デモ認証、認可、SQLインジェクション、XSS、実決済遮断。架空個人情報の同等保護テストは**現状実装未定** |
+| デプロイ確認 | Freeプラン、環境変数、一時DB、同一オリジン、終了時初期化、ログ |
 
 ### 16.2 テストケース例
 
@@ -1537,9 +1571,9 @@ flowchart TB
 | T-011 | 承諾処理 | 第三者が承諾 | `PATCH /api/transactions/:id` | 403エラー |
 | T-012 | 取引成立後 | SOLDのBook | 購入リクエスト | 409エラー |
 | T-013 | 支払い情報 | カード番号入力 | 入力または送信する | 入力欄が存在しない、または400エラー |
-| T-014 | 架空個人情報 | メール、電話番号、住所、学生証番号、本人確認書類 | 保存する | 架空データだけが保存され、実在データは保存されない |
+| T-014 | 架空個人情報（**現状実装未定**） | メール、電話番号、住所、学生証番号、本人確認書類 | 保存する | 架空データだけが保存され、実在データは保存されない |
 | T-015 | 仮想ポイント | 双方承諾成立 | 承諾する | 仮想ポイントだけが更新され、外部決済APIは呼ばれない |
-| T-016 | 架空個人情報保護 | 第三者ユーザー | 他ユーザーの架空個人情報を取得する | 403エラー、またはマスキング済みレスポンス |
+| T-016 | 架空個人情報保護（**現状実装未定**） | 第三者ユーザー | 他ユーザーの架空個人情報を取得する | 403エラー、またはマスキング済みレスポンス |
 
 ### 16.3 取引成立ロジックの重点テスト
 
@@ -1556,11 +1590,11 @@ flowchart TB
 
 | 項目 | 方針 |
 |---|---|
-| ログ確認 | Render DashboardのLogsを確認する |
-| 障害対応 | 500エラー発生時はAPIログ、Prismaエラー、DB接続状況を確認する |
-| DBバックアップ | Render DiskのスナップショットまたはMySQLダンプの運用を検討する |
+| ログ確認 | Render DashboardのLogsで500系のrequest ID、method、固定route pattern、status、error codeを確認する。401 / 403などの認証・認可エラーログは**現状実装未定**。生path、入力値、tokenは記録しない |
+| 障害対応 | 500エラー発生時はAPIログと一時DBのgenerationを確認する。デモデータは復元せずseedへ戻す |
+| DBバックアップ | 一時DBはバックアップしない。実在情報を入れず、消失を前提とする |
 | 環境変数変更 | Render Dashboard上で変更し、再デプロイする |
-| スキーマ変更 | Prisma migrationで変更履歴を管理する |
+| スキーマ変更 | 公開用SQLite schemaはコード、任意のMySQL schemaはPrisma migrationで変更履歴を管理する |
 | 不適切投稿対応 | 管理者によるBookステータス変更、ユーザー停止機能を将来追加する |
 | 取引トラブル対応 | Transaction履歴と承諾状態を確認できるようにする |
 | 画像管理 | 画像保存先、削除、容量制限を運用ルールとして定義する |
@@ -1569,6 +1603,79 @@ flowchart TB
 ---
 
 ## 18. 開発ルール
+
+### 18.0 ローカル起動・テスト
+
+Node.js 24.14.1以上とnpmを使用する。Renderは `NODE_VERSION=24.14.1` で固定する。初回だけbackend依存関係を導入する。
+
+```bash
+npm ci --prefix backend
+```
+
+リポジトリ直下から無料公開と同じ一時DBモードを起動する。
+
+```bash
+npm run dev
+```
+
+起動後はコンソールに表示されるURL（通常は `http://127.0.0.1:4000`）を開く。開発時に4000番が使用中なら4001番以降を最大10回まで試す。Expressが静的frontendとAPIを配信するため、通常はfrontendを別ポートで起動しない。終了は `Ctrl+C` を使う。本番ではRender指定ポートから別ポートへ切り替えず、bind失敗として終了する。
+
+静的frontendは `fetch` でExpress APIへ接続する。User、Book、Transaction、Comment、Notification、ポイント残高はブラウザストレージではなくbackendのSQLite `:memory:`に保存し、同時に開いている利用者間で共有する。ブラウザの `sessionStorage` には署名付きデモセッションtoken、有効期限、一時client IDだけを保存し、ドメインデータは保存しない。
+
+サイドバーから5つの初期架空デモアカウントを選択し、2時間有効な仮想セッションを開始できる。ニックネーム、学部、学科・専攻、学年だけを入力して新しいデモアカウントを追加でき、初期残高は一律5,000ポイント、保存上限は初期アカウントを含めて20件とする。実在メール、電話番号、住所、パスワード、本人確認情報は求めず、外部認証も使用しない。
+
+デモアカウントに購入者・出品者の固定ロールは設定しない。仮想セッションが有効なアカウントはすべて、教科書の出品と他ユーザーが出品した教科書への購入相談を行える。未認証状態の更新操作は `frontend/src/apiClient.js` で拒否し、UI のボタン無効化だけを認証判定として信用しない。
+
+出品者と購入者は変更不能なデモユーザー ID で識別する。同じユーザーが自分の出品へ購入相談を作成することは禁止し、別のデモユーザーに切り替えた場合だけ購入相談を作成できる。教科書一覧では自分の出品を青い枠と「自分の出品」ラベルで表示する。取引一覧は購入者または出品者になっているユーザーにだけ表示する。frontendは取引・通知を先頭4件だけ表示しており、5件目以降の表示・承諾操作は**現状実装未定**である。
+
+教科書詳細には、現在残高、取引額、成立後残高を示す支払い風 UI を表示する。ただし、カード番号、銀行口座、住所、電話番号などの入力欄や外部決済 API は持たず、実際の金銭や決済情報を扱わない。購入相談の作成時点では取引を `PENDING` として教科書を `NEGOTIATING` にするだけで、仮想ポイントは移動しない。
+
+購入者は「購入・支払いを承諾」、出品者は「販売を承諾」をそれぞれ操作できる。片方だけの承諾では `PENDING` のまま残高を変更せず、双方が承諾した場合だけ取引を `COMPLETED`、教科書を `SOLD` にし、購入者から出品者へ取引額分のデモ用仮想ポイントを移動して双方へ画面内通知を作成する。取引当事者以外の承諾、同じ当事者による重複承諾、残高不足での成立は API 境界で拒否する。
+
+教科書詳細では、認証済みユーザーが1〜240文字の簡易コメントを投稿できる。空文字、文字数超過、未認証投稿は API 境界で拒否し、画面では投稿内容を HTML として解釈せずテキストとして描画する。購入希望者などが投稿した場合は出品者へ、出品者が返信した場合は同じ教科書の既存コメント投稿者と取引購入者へ画面内通知を作成する。実在する連絡先や個人情報はコメントへ入力しない。
+
+backendには、署名付きBearerデモ認証、プロフィール、Books、Transactions、Comments、Notifications、demo lifecycle APIを実装済みである。一時DB側の取引成立処理はSQLiteトランザクション内で取引、Book、購入者・出品者残高、通知をまとめて更新する。Prismaモデル、MySQL migration、seedは任意のローカル永続化検証用として残す。
+
+frontendは起動時に `POST /api/demo/open`、30秒ごとに `POST /api/demo/heartbeat`、終了時に `POST /api/demo/close` を呼ぶ。最後のclient終了時にseed状態へ戻し、終了通知が届かない場合も90秒のheartbeat失効で戻す。ローカルサーバー停止、Renderの停止・再起動・再デプロイでも全変更が失われる。
+
+frontend と backend のテストは、リポジトリ直下からまとめて実行する。
+
+```bash
+npm test
+```
+
+実ポートを使うAPI E2Eと、Chromiumを使う2利用者ブラウザE2Eは分離して実行する。初回のブラウザ試験前だけ無料のChromiumテストバイナリを導入する。
+
+```bash
+npm run test:e2e
+npx --prefix backend playwright install chromium
+npm run test:browser
+```
+
+API E2Eは公開用SQLite `:memory:`を使用する。公開構成で使用しないMySQLへ自動接続・書き込みは行わない。MySQLモードでは `/api/health` の接続probeだけを実装し、実行には従来どおり接続内容の提示と明示承諾を必要とする。
+
+本番相当のビルドと起動は次の通り。
+
+```bash
+npm run build
+npm start
+```
+
+frontendだけを静的サーバーで確認する `npm run dev:frontend` も残しているが、APIは `http://127.0.0.1:4000` で別途必要になる。通常の機能確認にはルートの `npm run dev` を使用する。
+
+### 任意のローカルMySQLモード
+
+無料公開ではMySQLを使用しない。Prisma/MySQLの検証を明示的に行う場合だけ `DEMO_STORAGE_MODE=mysql` を設定する。
+
+MySQLへ接続する `prisma:deploy`、`prisma:seed`、backend起動は、接続先ホスト・ポート・DB名、適用migration、seed件数と既存データへの影響を提示し、ユーザーの明示承諾を得てから実行する。承諾前はMySQLへ接続しない。
+
+```bash
+cd backend
+npm ci
+npm run prisma:deploy
+npm run prisma:seed
+DEMO_STORAGE_MODE=mysql npm run dev
+```
 
 ### 18.1 ブランチ運用
 
@@ -1609,11 +1716,11 @@ refactor: transactionServiceの責務を整理
 
 | ID | 内容 | 担当 | 期限 | 状態 |
 |---|---|---|---|---|
-| TBD-001 | デモユーザーの種類と初期ポイントをどうするか | 〇〇 | YYYY-MM-DD | 未決定 |
-| TBD-002 | 画像ファイルをサンプル画像だけにするか、デモ用アップロードも許可するか | 〇〇 | YYYY-MM-DD | 未決定 |
-| TBD-003 | コメント機能をMVPに含めるか、Phase2に回すか | 〇〇 | YYYY-MM-DD | 未決定 |
+| TBD-001 | 追加デモユーザーの初期ポイントを5,000ポイントに固定する | Maker | 2026-07-14 | 解決 |
+| TBD-002 | 画像ファイルをサンプル画像だけにするか、デモ用アップロードも許可するか | 〇〇 | YYYY-MM-DD | 現状実装未定 |
+| TBD-003 | 一時SQLiteによる簡易コメントをMVPに含める | Maker | 2026-07-14 | 解決 |
 | TBD-004 | 授業マスタを作るか、Bookの文字列項目で始めるか | 〇〇 | YYYY-MM-DD | 未決定 |
-| TBD-005 | MySQLをRender上で運用する際のデモデータリセット・バックアップ方法 | 〇〇 | YYYY-MM-DD | 未決定 |
+| TBD-005 | Render無料公開ではMySQLを使わず、SQLite `:memory:`を終了時にseedへ戻し、バックアップしない | Maker | 2026-07-14 | 解決 |
 | TBD-006 | 管理者機能をMVPに含めるか | 〇〇 | YYYY-MM-DD | 未決定 |
 | TBD-007 | 画面内デモ通知の保存期間をどうするか | 〇〇 | YYYY-MM-DD | 未決定 |
 
@@ -1630,6 +1737,8 @@ refactor: transactionServiceの責務を整理
 - Prisma MySQL Connector: https://www.prisma.io/docs/orm/core-concepts/supported-databases/mysql
 - Render: Deploy a Next.js App: https://render.com/docs/deploy-nextjs-app
 - Render: Deploy a Node Express App: https://render.com/docs/deploy-node-express-app
-- Render: Deploy MySQL: https://render.com/docs/deploy-mysql
+- Render: Free Instances: https://render.com/docs/free
 - Render: Persistent Disks: https://render.com/docs/disks
+- Render: Setting Your Node.js Version: https://render.com/docs/node-version
+- Node.js SQLite: https://nodejs.org/api/sqlite.html
 - MySQL Documentation: https://dev.mysql.com/doc/

@@ -18,11 +18,104 @@
         </div>
 
         <section class="profile-panel" aria-label="プロフィール">
-          <div class="avatar" aria-hidden="true">G</div>
+          <div id="session-avatar" class="avatar" aria-hidden="true">?</div>
           <div>
-            <p id="session-name" class="profile-name">Guest</p>
-            <p id="session-meta" class="profile-meta">認証準備中</p>
+            <p id="session-name" class="profile-name">未選択</p>
+            <p id="session-meta" class="profile-meta">デモアカウントを選択</p>
+            <p id="session-points" class="profile-points">0 pt</p>
           </div>
+        </section>
+
+        <section class="session-panel" aria-labelledby="session-heading">
+          <div class="panel-heading">
+            <h2 id="session-heading">デモアカウント</h2>
+            <span id="session-state" class="session-state">未接続</span>
+          </div>
+          <label class="side-field">
+            <span>利用ユーザー</span>
+            <select id="demo-user-select"></select>
+          </label>
+          <div class="session-actions">
+            <button id="start-session" class="side-primary-button" type="button">利用開始・切替</button>
+            <button id="end-session" class="side-ghost-button" type="button" disabled>終了</button>
+          </div>
+          <p id="session-expiry" class="side-note">外部認証には接続しません</p>
+        </section>
+
+        <details class="account-creator">
+          <summary>デモアカウント追加</summary>
+          <form id="account-form" class="side-form">
+            <label class="side-field">
+              <span>ニックネーム</span>
+              <input name="nickname" maxlength="40" required />
+            </label>
+            <label class="side-field">
+              <span>学部</span>
+              <select name="faculty" required>
+                <option value="文学部">文学部</option>
+                <option value="経済学部" selected>経済学部</option>
+                <option value="法学部">法学部</option>
+                <option value="商学部">商学部</option>
+                <option value="理工学部">理工学部</option>
+              </select>
+            </label>
+            <label class="side-field">
+              <span>学科・専攻</span>
+              <input name="department" maxlength="40" />
+            </label>
+            <label class="side-field">
+              <span>学年</span>
+              <select name="year" required>
+                <option value="1">1年</option>
+                <option value="2">2年</option>
+                <option value="3">3年</option>
+                <option value="4">4年</option>
+                <option value="5">修士1年相当</option>
+                <option value="6">修士2年相当</option>
+              </select>
+            </label>
+            <p class="side-note">初期残高 5,000 pt / 実在の連絡先は保存しません</p>
+            <button class="side-primary-button" type="submit">追加して利用開始</button>
+          </form>
+        </details>
+
+        <section class="profile-editor" aria-labelledby="profile-heading">
+          <div class="panel-heading">
+            <h2 id="profile-heading">プロフィール</h2>
+            <span class="side-note">架空データ</span>
+          </div>
+          <form id="profile-form" class="side-form">
+            <label class="side-field">
+              <span>ニックネーム</span>
+              <input name="nickname" maxlength="40" required disabled />
+            </label>
+            <label class="side-field">
+              <span>学部</span>
+              <select name="faculty" required disabled>
+                <option value="文学部">文学部</option>
+                <option value="経済学部">経済学部</option>
+                <option value="法学部">法学部</option>
+                <option value="商学部">商学部</option>
+                <option value="理工学部">理工学部</option>
+              </select>
+            </label>
+            <label class="side-field">
+              <span>学科・専攻</span>
+              <input name="department" maxlength="40" disabled />
+            </label>
+            <label class="side-field">
+              <span>学年</span>
+              <select name="year" required disabled>
+                <option value="1">1年</option>
+                <option value="2">2年</option>
+                <option value="3">3年</option>
+                <option value="4">4年</option>
+                <option value="5">修士1年相当</option>
+                <option value="6">修士2年相当</option>
+              </select>
+            </label>
+            <button class="side-primary-button" type="submit" disabled>プロフィール保存</button>
+          </form>
         </section>
 
         <nav class="quick-nav" aria-label="主要画面">
@@ -37,6 +130,14 @@
             <span id="transaction-count" class="count-pill">0</span>
           </div>
           <ul id="transaction-list" class="transaction-list"></ul>
+        </section>
+
+        <section id="notifications" class="notification-panel" aria-label="デモ通知">
+          <div class="panel-heading">
+            <h2>通知</h2>
+            <span id="notification-count" class="count-pill">0</span>
+          </div>
+          <ul id="notification-list" class="notification-list"></ul>
         </section>
       </aside>
 
@@ -90,48 +191,50 @@
         <section id="new-listing" class="listing-form-section">
           <div class="section-heading">
             <h2>出品</h2>
-            <span class="muted">local draft</span>
+            <span id="listing-auth-message" class="muted">デモアカウントが必要です</span>
           </div>
 
           <form id="listing-form" class="listing-form">
-            <label>
-              <span>教科書名</span>
-              <input name="title" required maxlength="80" placeholder="例: 経済学入門" />
-            </label>
-            <label>
-              <span>授業名</span>
-              <input name="course" required maxlength="80" placeholder="例: 経済学 I" />
-            </label>
-            <label>
-              <span>学部</span>
-              <select name="faculty" required>
-                <option value="経済学部">経済学部</option>
-                <option value="法学部">法学部</option>
-                <option value="商学部">商学部</option>
-                <option value="理工学部">理工学部</option>
-                <option value="文学部">文学部</option>
-              </select>
-            </label>
-            <label>
-              <span>使用年度</span>
-              <input name="usedYear" required type="number" min="2000" max="2100" value="2026" />
-            </label>
-            <label>
-              <span>価格</span>
-              <input name="price" required type="number" min="0" step="100" value="1000" />
-            </label>
-            <label>
-              <span>種別</span>
-              <select name="materialType">
-                <option value="REQUIRED">必須教材</option>
-                <option value="REFERENCE">参考書</option>
-              </select>
-            </label>
-            <label class="wide-field">
-              <span>状態メモ</span>
-              <textarea name="description" rows="3" maxlength="240" placeholder="書き込み、版、受け渡し場所など"></textarea>
-            </label>
-            <button class="primary-button" type="submit">出品を追加</button>
+            <fieldset id="listing-fields" class="listing-fields" disabled>
+              <label>
+                <span>教科書名</span>
+                <input name="title" required maxlength="80" placeholder="例: 経済学入門" />
+              </label>
+              <label>
+                <span>授業名</span>
+                <input name="course" required maxlength="80" placeholder="例: 経済学 I" />
+              </label>
+              <label>
+                <span>学部</span>
+                <select name="faculty" required>
+                  <option value="経済学部">経済学部</option>
+                  <option value="法学部">法学部</option>
+                  <option value="商学部">商学部</option>
+                  <option value="理工学部">理工学部</option>
+                  <option value="文学部">文学部</option>
+                </select>
+              </label>
+              <label>
+                <span>使用年度</span>
+                <input name="usedYear" required type="number" min="2000" max="2100" value="2026" />
+              </label>
+              <label>
+                <span>仮想ポイント</span>
+                <input name="price" required type="number" min="0" step="100" value="1000" />
+              </label>
+              <label>
+                <span>種別</span>
+                <select name="materialType">
+                  <option value="REQUIRED">必須教材</option>
+                  <option value="REFERENCE">参考書</option>
+                </select>
+              </label>
+              <label class="wide-field">
+                <span>状態メモ</span>
+                <textarea name="description" rows="3" maxlength="240" placeholder="書き込み、版、受け渡し場所など"></textarea>
+              </label>
+              <button class="primary-button" type="submit">出品を追加</button>
+            </fieldset>
           </form>
         </section>
       </main>

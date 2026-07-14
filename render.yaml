@@ -1,0 +1,23 @@
+services:
+  - type: web
+    name: keio-book-demo
+    runtime: node
+    plan: free
+    buildCommand: npm ci --include=dev --prefix backend && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NODE_VERSION
+        value: 24.14.1
+      - key: HOST
+        value: 0.0.0.0
+      - key: DEMO_MODE
+        value: "true"
+      - key: DEMO_STORAGE_MODE
+        value: ephemeral
+      - key: SERVE_FRONTEND
+        value: "true"
+      - key: SESSION_SECRET
+        generateValue: true

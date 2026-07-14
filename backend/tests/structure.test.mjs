@@ -18,14 +18,57 @@ test("backend base files exist", async () => {
     exists("src/app.ts"),
     exists("src/server.ts"),
     exists("src/routes/healthRoutes.ts"),
+    exists("src/routes/authRoutes.ts"),
+    exists("src/routes/userRoutes.ts"),
+    exists("src/routes/bookRoutes.ts"),
+    exists("src/routes/commentRoutes.ts"),
+    exists("src/routes/demoRoutes.ts"),
+    exists("src/routes/transactionRoutes.ts"),
+    exists("src/services/authService.ts"),
+    exists("src/services/bookService.ts"),
+    exists("src/services/commentService.ts"),
+    exists("src/services/ephemeralLifecycle.ts"),
+    exists("src/services/transactionService.ts"),
     exists("src/middlewares/errorHandler.ts"),
+    exists("src/middlewares/rateLimit.ts"),
+    exists("src/middlewares/requestContext.ts"),
     exists("src/lib/prisma.ts"),
+    exists("src/lib/ephemeralStore.ts"),
+    exists("src/lib/pagination.ts"),
+    exists("playwright.config.mjs"),
+    exists("e2e/two-user.spec.mjs"),
     exists("prisma/schema.prisma"),
+    exists("prisma/seed.ts"),
+    exists("prisma/migrations/20260714122700_init/migration.sql"),
   ]);
 });
 
-test("prisma schema has no domain models yet", async () => {
+test("prisma schema defines the API domain models", async () => {
   const schema = await readFile(join(root, "prisma", "schema.prisma"), "utf8");
   assert.match(schema, /datasource db/);
-  assert.doesNotMatch(schema, /^model\s+/m);
+  assert.match(schema, /^model User/m);
+  assert.match(schema, /^model Book/m);
+  assert.match(schema, /^model Transaction/m);
+  assert.match(schema, /^model Notification/m);
+  assert.match(schema, /pointBalance Int\s+@default\(5000\)/);
+});
+
+test("migration and seed cover the demo marketplace without sensitive fields", async () => {
+  const migration = await readFile(
+    join(root, "prisma", "migrations", "20260714122700_init", "migration.sql"),
+    "utf8",
+  );
+  const seed = await readFile(join(root, "prisma", "seed.ts"), "utf8");
+  const packageJson = JSON.parse(await readFile(join(root, "package.json"), "utf8"));
+
+  assert.match(migration, /CREATE TABLE `users`/);
+  assert.match(migration, /CREATE TABLE `books`/);
+  assert.match(migration, /CREATE TABLE `transactions`/);
+  assert.match(migration, /FOREIGN KEY \(`buyer_id`\)/);
+  assert.match(seed, /demo-user-suzuki/);
+  assert.match(seed, /status: "PENDING"/);
+  assert.match(seed, /status: "COMPLETED"/);
+  assert.match(seed, /upsert/);
+  assert.doesNotMatch(seed, /dummyEmail|cardNumber|bankAccount|password/);
+  assert.equal(packageJson.scripts["prisma:seed"], "prisma db seed");
 });

@@ -1,0 +1,91 @@
+# Maker Memory
+
+このファイルは Maker の継続コンテキストです。Maker が読み書きします。
+Reviewer は独立性を保つため、このファイルを参照しません。
+
+## 役割
+
+- 通常の依頼を調査し、既存設計とコードに沿って実装、テスト、修正まで行う。
+- Reviewer の指摘は、ユーザーが修正を明示的に承認したものだけ実装する。
+- 作業完了時に `docs/development-log.md` とこのファイルを必要に応じて更新する。
+
+## 引き継いだプロジェクト状態
+
+- プロジェクトは慶應生向け教科書売買アプリのデモである。
+- frontend は依存関係なしの静的 SPA で、デモアカウント追加・選択、仮想セッション、プロフィール編集、教科書一覧、検索、詳細、出品、コメント、購入相談、双方承諾、仮想ポイント取引、画面内通知の UI を持つ。
+- backend は Express 5 / TypeScriptで、health、署名付きデモ認証、プロフィール、Books、Transactions、Comments、Notifications、demo lifecycle APIを持つ。
+- frontendはfetch/Bearer認証でbackendへ接続し、ドメインデータをブラウザストレージへ保存しない。
+- 無料公開の既定storageはNode.js組み込みSQLite `:memory:`。Prisma 7 / MySQLモデル・migration・seedは承諾制のローカル検証用として残す。
+- リポジトリ直下の `npm run dev` は統合サーバーを通常4000番で起動し、開発時に使用中なら4001番以降へ切り替える。
+- リポジトリ直下の `npm test` は frontend と backend の標準 Node.js テストを実行する。
+
+## 継続する制約
+
+- 実決済、カード・銀行口座登録、実在個人情報の入力・保存を実装しない。
+- 売買は仮想ポイントで表現し、架空個人情報も実データと同等のセキュリティで扱う。
+- 外部サービスは無料プランだけを使用し、課金やカード登録が必要なら作業を中止してユーザーへ伝える。
+- backend APIでも実決済・実在個人情報・外部認証を追加せず、入力許可リストと認可を維持する。
+- 作業結果は `docs/development-log.md` に追記する。
+
+## 現在の残タスク
+
+- Renderへの実デプロイと、Render上での複数ブラウザ共有・停止後初期化は未確認。
+- ローカルHTTP、Supertest API E2E、Playwrightの2利用者ブラウザ操作を確認済み。Render上の目視操作は未確認。
+- 任意のMySQLモードはCommentsを永続化せず、無料公開では使用しない。ローカルMySQLは `.local/mysql` の127.0.0.1:3307に残っている。
+
+## 2026-07-15 のREADME実装状況整理
+
+- Reviewer評価でfrontend未対応と確認された画像URL登録、詳細検索、出品編集・取り下げ、プロフィールアイコン、ページ移動、5件目以降の取引・通知をREADMEで`現状実装未定`と明記した。
+- 架空メール・電話番号・住所・学生証・本人確認書類の保存と同等保護は、現在の公開用一時SQLiteと登録APIには存在せず入力を拒否することをREADMEへ明記した。
+- backend実装済みの画像URL、詳細検索、Book更新・取り下げ、アイコンURL、APIページングと、frontend未対応部分を区別して記載した。
+- 認証・認可エラーの401/403ログは現状実装未定で、現在のJSONエラーログが500系だけであることをREADMEへ反映した。
+- 製品コードは変更していない。`npm test`はfrontend 2件、backend 4件が成功した。
+
+## 2026-07-15 のRender production build修正
+
+- `render.yaml`のBuild Commandを`npm ci --include=dev --prefix backend && npm run build`へ変更した。
+- READMEとAGENTSのRender Build Commandも同じ内容へ同期した。ローカル開発用の通常の`npm ci --prefix backend`は変更していない。
+- `NODE_ENV=production`で修正後コマンドを実行し、devDependencies、型定義、Prisma CLIを含む依存導入とfrontend/backend buildが成功することを確認した。
+- `npm test`はfrontend 2件、backend 4件が成功した。Render実環境へのデプロイは引き続き未確認である。
+
+## 2026-07-14 の実装
+
+- 5つの架空デモアカウントを追加し、同一タブで随時切り替え可能にした。
+- 2時間有効な仮想セッションを `sessionStorage` に保存し、タブごとに異なるユーザーで操作可能にした。
+- プロフィールのニックネーム、学部、学科・専攻、学年を編集可能にした。
+- 所有権と取引当事者を変更不能なデモユーザー ID で判定し、自己購入を拒否した。
+- 未認証時の出品・購入を拒否し、取引一覧を購入者・出品者だけに限定した。
+- 金額表示を実通貨ではなく `pt` に統一した。
+- frontend に API 境界の振る舞いテストを追加した。
+- デモアカウントに購入者・出品者の固定ロールは付けず、認証済みなら出品と他ユーザー出品の購入相談を両方行える。
+- 未認証操作は API 境界で拒否し、自己購入は安定したユーザー ID で拒否する。
+- 教科書一覧では自分の出品カードを青枠と「自分の出品」ラベルで表示する。
+- 購入者と出品者が別々に承諾し、双方承諾時だけ取引を `COMPLETED`、教科書を `SOLD` にする処理を frontend の API 境界へ追加した。
+- 片側承諾時は仮想ポイントを移動せず、双方承諾時だけ購入者残高を減算し、出品者残高を加算する。残高不足、第三者承諾、重複承諾は拒否する。
+- プロフィールの残高表示、教科書詳細の支払い風プレビュー、取引承諾操作、取引完了通知を追加した。実決済情報の入力欄や外部決済 API は持たない。
+- 複数の `localStorage` 更新は失敗時に更新前データへ戻すが、DB 相当の同時実行制御はない。backend 実装時は単一の DB トランザクションへ置き換える。
+- ニックネーム、学部、学科・専攻、学年だけでデモアカウントを追加可能にし、コード側で変更不能なデモIDと初期5,000ポイントを付与する。追加アカウントを含めて最大20件とする。
+- 教科書詳細へ1〜240文字の簡易コメントを追加し、未認証・空文字・文字数超過を API 境界で拒否する。投稿内容は `textContent` で描画する。
+- 購入希望者等のコメントは出品者へ、出品者の返信は同じ教科書の既存投稿者と取引購入者へ画面内通知する。取引成立通知には `TRANSACTION_COMPLETED` 種別を付ける。
+- backendへ2時間有効なHMAC署名付きBearerデモセッション、プロフィール、Books CRUD、Transactions作成・取得・承諾、成立通知APIを追加した。
+- User、Book、Transaction、NotificationのPrisma 7モデルとMySQL migrationを追加し、Prisma MariaDB driver adapterで接続する。
+- 双方承諾時のTransaction、Book、購入者・出品者残高、通知を直列化可能な単一DBトランザクションで確定する。
+- 一時MySQLで登録、出品、購入相談、片側承諾、双方成立、ポイント移動、成立通知のE2E確認を完了した。
+- `backend/prisma/seed.ts` に5架空ユーザー、4架空Book、交渉中・成立済みTransaction各1件、成立通知2件の冪等seedを追加した。`database/seed.sql` は手動確認用の同等SQLである。
+- seed再実行時は取引後の仮想ポイントを巻き戻さず、実在個人情報・認証情報・決済情報を投入しない。
+- MySQLへ接続するmigration、seed、API起動は、接続先・変更内容・件数・既存データ影響を提示し、ユーザーの明示承諾後だけ実行する。承諾後、ローカル3307番へmigrationとseedを適用した。
+- `keio_book_demo` にはUser 5件、Book 4件、Transaction 2件、Notification 2件があり、seed再実行後も件数が増えないことを確認した。
+- frontendのAPI境界をlocalStorage実装からfetch/Bearer実装へ置き換え、認証、アカウント、プロフィール、Books、Transactions、Comments、NotificationsをExpress APIへ接続した。
+- backendにNode.js組み込みSQLite `:memory:`のUser、Book、Transaction、Comment、Notification schema、制約、index、架空seedを追加した。
+- 一時SQLiteでも自己購入拒否、価格一致、残高、当事者承諾、Book状態、ポイント移動、通知を単一transactionで処理する。
+- ブラウザopen/30秒heartbeat/close APIを追加し、最終client終了、90秒通信断、プロセス停止時にデータをseed状態へ戻す。共有中の手動resetを拒否し、active client上限を200件にした。
+- Expressから静的frontendとAPIを同一オリジン配信し、Render Free Web Service 1個だけを作る `render.yaml` を追加した。MySQL、Persistent Disk、外部DB、カード・課金設定は公開構成に含めない。
+- `npm run dev` は一時DB統合サーバーを起動し、開発時のEADDRINUSEでは最大10ポート先まで再試行する。本番では指定PORTのbind失敗を異常終了にする。
+- frontendのAPIモックテストとbackend一時DBテストを追加し、localStorage未使用、認証header、5,000ポイント、自己購入拒否、双方成立、ポイント移動、最終client終了時resetを確認した。
+- frontend単独buildと `0.0.0.0` bindを確認し、Renderでは引き続き統合Web Serviceから同一オリジン配信する。
+- APIへ生IPを保存しない1分180件のインメモリrate limit、request ID、固定route patternだけを使う500系JSONエラーログを追加した。
+- Books、Transactions、Comments、Notificationsへ既定20件・最大50件のページングを追加し、frontendをページレスポンスへ追従させた。
+- healthは選択中storageへ `SELECT 1` を実行し、SQLite統計またはMySQL接続状態を返し、失敗時は503にする。
+- Supertest API E2Eで2利用者のsession、出品共有、自己購入拒否、双方承諾、ポイント移動、ページング、最終client終了時resetを確認した。
+- Playwright Chromiumの独立browser context 2つで、自分の出品表示・購入不可、別利用者への出品共有、購入相談、出品者への取引反映を確認した。
+- 公開用一時DBはバックアップせず、schemaと架空seedからのresetを復旧手段とする。MySQLは公開せず、health probe以外の自動接続は行わない。
