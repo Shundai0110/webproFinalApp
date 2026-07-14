@@ -445,7 +445,7 @@ refactor: transactionServiceの責務を整理
 
 Render.comのFree Web Service 1個へのデプロイを想定し、ルートの `render.yaml` を使用する。
 
-- Build Command: `npm ci --prefix backend && npm run build`
+- Build Command: `npm ci --include=dev --prefix backend && npm run build`
 - Start Command: `npm start`
 - Health Check Path: `/api/health`
 - `DEMO_STORAGE_MODE=ephemeral`

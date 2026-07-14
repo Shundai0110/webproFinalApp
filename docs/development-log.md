@@ -513,3 +513,65 @@
 ### 次にやること
 - ユーザーの明示指示がある場合だけ、無料・カード登録不要を確認してRender Blueprintへデプロイする。
 - デプロイ後にhealth、2ブラウザ共有、429応答、全ブラウザ終了またはサービス停止後のseed復旧を確認する。
+
+## 2026-07-15 01:07
+## e7b72d7, rate limit, page-pageSize api, health check, JSONログの追加（評価記録は未コミット）
+### 依頼内容
+- READMEに記載されたデモ用途だけを前提に、現状でデプロイ可能か評価し、README記載事項のうち実行できないものを挙げる。
+
+### 実施内容
+- 変更したファイル: `docs/agent-memory/reviewer.md`, `docs/development-log.md`（評価記録のみ）
+- 現行commitのREADME、Render設定、frontend、backend、一時SQLite、API・ブラウザE2Eを独立に確認した。製品コードとREADMEは変更していない。
+- `NODE_ENV=production`の一時環境でRender Build Command相当を再現し、devDependencies省略によるTypeScript build失敗を確認した。
+- READMEとの差として、画像URL登録、詳細検索、出品編集・取り下げ、アイコン編集、画面ページング、5件目以降の取引・通知、架空個人情報保存、認証エラーログを整理した。
+- Renderとnpmの公式ドキュメントで、Free Web Serviceの制約、無料枠超過時の扱い、BlueprintのFree指定、production時のdevDependencies省略を確認した。
+
+### 確認内容
+- 実行したコマンド: `git status --short`, `git log`, `rg`, `nl`, `npm test`, `npm run build`, `npm run test:e2e`, `npm run test:browser`, `npm audit --prefix backend --omit=dev`, production一時環境での`npm ci`・`npm ci --include=dev`・`npm run build`
+- テスト結果: 通常テストはfrontend 2件・backend 4件、API E2E 1件、Playwright E2E 1件がすべて成功。本番依存の既知脆弱性は0件。現行production依存導入後のbuildは型定義不足で失敗し、`--include=dev`指定後は成功した。
+- 未確認事項: Renderへの実デプロイ、Render上のbuild/start・health・同一オリジン・2利用者共有・429・終了時reset、検索2秒目標、長時間・負荷試験。
+
+### 次にやること
+- Makerが`render.yaml`のBuild CommandでdevDependenciesを明示導入し、production相当buildを再確認する。
+- READMEを実装に合わせて整理するか、画像・詳細検索・出品管理・アイコン・ページ移動・架空個人情報方針の不足機能を実装する。
+- 修正後、支払方法を登録しないRender Free環境でデプロイ後確認項目を実施する。
+
+## 2026-07-15 01:15
+## e7b72d7, rate limit, page-pageSize api, health check, JSONログの追加（今回の文書更新は未コミット）
+### 依頼内容
+- Reviewerが挙げたREADMEと現状実装の差について、該当するREADME記述へ「現状実装未定」と明記する。
+
+### 実施内容
+- 変更したファイル: `README.md`, `docs/agent-memory/maker.md`, `docs/development-log.md`
+- READMEのMVP範囲に「現状実装未定の範囲」を追加し、画像URL登録、詳細検索、出品編集・取り下げ、プロフィールアイコン、ページ移動、5件目以降の取引・通知を列挙した。
+- 機能要件、ユースケース、画面定義、API一覧、DB設計、セキュリティ設計、デプロイ確認、テストケース、運用手順の重複記述にも状態を反映した。
+- backend APIが実装済みの項目は「backend実装済み、frontend操作は現状実装未定」と区別した。
+- 架空個人情報の保存・暗号化・マスキング・監査ログと、401/403認証・認可エラーログが現状実装未定であることを明記した。
+
+### 確認内容
+- 実行したコマンド: `rg -n "現状実装未定" README.md`, `git diff --check`, `git diff --stat`, `npm test`
+- テスト結果: `git diff --check`成功。frontend 2 test files、backend 4 test filesがすべて成功し、Prisma Client生成とTypeScript buildも成功した。
+- 未確認事項: READMEのブラウザ上でのMarkdownレンダリング。製品コードは変更していないため、未実装機能の動作確認は行っていない。
+
+### 次にやること
+- 現状実装未定の各機能を実装する場合は、frontend対応、データモデル対応、ログ対応を項目ごとに設計してから着手する。
+- Renderデプロイ前に、別途指摘されているproduction Build Commandを修正して再検証する。
+
+## 2026-07-15 01:22
+## e7b72d7, rate limit, page-pageSize api, health check, JSONログの追加（今回の修正は未コミット）
+### 依頼内容
+- `NODE_ENV=production`でdevDependenciesが省略されTypeScript buildが失敗する問題を、Render Build Commandへ`--include=dev`を追加して修正する。
+
+### 実施内容
+- 変更したファイル: `render.yaml`, `README.md`, `AGENTS.md`, `docs/agent-memory/maker.md`, `docs/development-log.md`
+- Render Build Commandを`npm ci --include=dev --prefix backend && npm run build`へ変更した。
+- READMEのデプロイ設計とAGENTSのデプロイ設定を同じコマンドへ同期した。
+- ローカル開発では`NODE_ENV=production`を指定しないため、通常の依存導入コマンドは変更していない。
+
+### 確認内容
+- 実行したコマンド: `env NODE_ENV=production npm ci --include=dev --prefix backend && npm run build`, `npm test`, `git diff --check`, `rg`
+- テスト結果: production条件で依存217パッケージの監査が成功し、既知脆弱性0件。frontend構文検査、Prisma Client生成、TypeScript buildが成功。frontend 2 test files、backend 4 test filesもすべて成功した。
+- 未確認事項: Render実環境でのBuild Command実行とデプロイ後の起動・health check。
+
+### 次にやること
+- 無料プラン、支払方法未登録、課金設定なしを確認できる場合だけRenderへデプロイし、READMEのデプロイ後確認項目を実施する。

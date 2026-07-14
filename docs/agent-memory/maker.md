@@ -33,6 +33,21 @@ Reviewer は独立性を保つため、このファイルを参照しません�
 - ローカルHTTP、Supertest API E2E、Playwrightの2利用者ブラウザ操作を確認済み。Render上の目視操作は未確認。
 - 任意のMySQLモードはCommentsを永続化せず、無料公開では使用しない。ローカルMySQLは `.local/mysql` の127.0.0.1:3307に残っている。
 
+## 2026-07-15 のREADME実装状況整理
+
+- Reviewer評価でfrontend未対応と確認された画像URL登録、詳細検索、出品編集・取り下げ、プロフィールアイコン、ページ移動、5件目以降の取引・通知をREADMEで`現状実装未定`と明記した。
+- 架空メール・電話番号・住所・学生証・本人確認書類の保存と同等保護は、現在の公開用一時SQLiteと登録APIには存在せず入力を拒否することをREADMEへ明記した。
+- backend実装済みの画像URL、詳細検索、Book更新・取り下げ、アイコンURL、APIページングと、frontend未対応部分を区別して記載した。
+- 認証・認可エラーの401/403ログは現状実装未定で、現在のJSONエラーログが500系だけであることをREADMEへ反映した。
+- 製品コードは変更していない。`npm test`はfrontend 2件、backend 4件が成功した。
+
+## 2026-07-15 のRender production build修正
+
+- `render.yaml`のBuild Commandを`npm ci --include=dev --prefix backend && npm run build`へ変更した。
+- READMEとAGENTSのRender Build Commandも同じ内容へ同期した。ローカル開発用の通常の`npm ci --prefix backend`は変更していない。
+- `NODE_ENV=production`で修正後コマンドを実行し、devDependencies、型定義、Prisma CLIを含む依存導入とfrontend/backend buildが成功することを確認した。
+- `npm test`はfrontend 2件、backend 4件が成功した。Render実環境へのデプロイは引き続き未確認である。
+
 ## 2026-07-14 の実装
 
 - 5つの架空デモアカウントを追加し、同一タブで随時切り替え可能にした。

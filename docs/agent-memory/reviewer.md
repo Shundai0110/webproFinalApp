@@ -78,3 +78,28 @@ Reviewer は Maker のメモリや未公開の実装意図を参照せず、確�
 - `npm audit --omit=dev --json`: 本番依存169件、既知脆弱性0件。
 - `npm --prefix frontend run build`: `Missing script: build`で失敗。
 - 不正URLに対する静的サーバー停止可能性の動的再現は、隔離ポート起動の権限が承認されず未確認。コード上は`decodeURIComponent`が例外処理外にある。
+
+### 2026-07-15 README限定デモのデプロイ可否再評価
+
+- 評価対象: commit `e7b72d7` (`develop`)、評価開始時のworktreeはclean。Makerメモリは参照していない。
+- 判定: 現行`render.yaml`のままではデプロイ不可。`NODE_ENV=production`で`npm ci`がdevDependenciesを省略し、TypeScript型定義が不足してBuild Commandが失敗する。
+- 修正可能性: 一時環境で`npm ci --include=dev`を使うとproduction buildが成功したため、Build Command修正後はREADME限定の消失前提デモとしてデプロイ候補になる。ただしRender実環境は未確認であり、現時点ではデプロイ済み・デプロイ可能確認済みとは判定しない。
+
+#### 指摘
+
+1. 高: `render.yaml`は`NODE_ENV=production`を設定した状態で`npm ci --prefix backend`を実行する。npmはこの条件でdevDependenciesを省略し、`@types/node`、`@types/express`、`@types/cors`などがなく`tsc`が失敗する。現行Build CommandではRender deployを完了できない。
+2. 中: READMEのMVPにある画像URL登録、詳細検索条件、出品編集・取り下げ、プロフィールアイコン編集はAPIの一部に存在してもfrontendに入力・操作UIがない。検索画面はキーワード・学部・状態だけで、学科・学年・年度・教材種別・カテゴリを指定できない。
+3. 中: frontendはBooks・Transactions・Comments・Notificationsを先頭50件だけ取得し、ページ移動手段がない。さらに取引と通知は先頭4件だけ表示するため、5件目以降の取引承諾や通知確認を画面から行えない。
+4. 中: READMEは架空メール・電話・住所・学生証・本人確認書類の保存と同等保護を記載する一方、実装のUser schemaと登録APIはこれらの項目を持たず拒否する。T-014/T-016は実行不能で、README内でも「保存する」と「求めず拒否する」が矛盾している。
+5. 低: READMEの非機能要件はRender Logsで認証エラー確認を求めるが、実装は500系だけをJSON記録し、401/403を記録しない。
+6. 未確認: Render上でのbuild/start、health、同一オリジン、2利用者共有、429、最終client終了・90秒失効・サービス停止後resetは未実施。通常検索2秒目標と長時間・負荷時動作も未計測。
+
+#### 確認結果
+
+- `npm test`: frontend 2 test files、backend 4 test filesが成功。
+- `npm run build`: frontend構文検査、Prisma Client生成、TypeScript buildが成功。
+- `npm run test:e2e`: 2利用者API取引、自己購入拒否、双方承諾、ポイント移動、SOLD更新、ページング、health、最終client close後resetが成功。
+- `npm run test:browser`: 2 browser contextの出品共有、自己購入不可表示、購入相談共有が成功。
+- `npm audit --prefix backend --omit=dev`: 既知脆弱性0件。
+- production依存だけの一時環境: 現行相当の`npm ci`後は型定義不足でbuild失敗し、`npm ci --include=dev`後はbuild成功。
+- Render FreeはREADME用途に合うが、課金禁止を守るには支払方法を登録しない。無料枠超過時は停止を許容し、課金で継続しない。
