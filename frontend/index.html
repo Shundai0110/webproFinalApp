@@ -142,37 +142,39 @@
       </aside>
 
       <main class="workspace">
-        <header class="top-bar">
-          <div>
-            <p class="page-kicker">Textbook exchange</p>
-            <h2>慶應生向け教科書売買</h2>
+        <header class="site-header">
+          <div class="top-bar">
+            <div>
+              <p class="page-kicker">Textbook exchange</p>
+              <h2>慶應生向け教科書売買</h2>
+            </div>
+            <button id="reset-demo" class="ghost-button" type="button">デモ初期化</button>
           </div>
-          <button id="reset-demo" class="ghost-button" type="button">デモ初期化</button>
+
+          <section id="books" class="toolbar" aria-label="検索条件">
+            <label class="search-box">
+              <span>検索</span>
+              <input id="search-input" type="search" placeholder="教科書名・授業名" autocomplete="off" />
+            </label>
+
+            <label>
+              <span>学部</span>
+              <select id="faculty-filter">
+                <option value="">すべて</option>
+              </select>
+            </label>
+
+            <label>
+              <span>状態</span>
+              <select id="status-filter">
+                <option value="">すべて</option>
+                <option value="AVAILABLE">出品中</option>
+                <option value="NEGOTIATING">交渉中</option>
+                <option value="SOLD">売却済み</option>
+              </select>
+            </label>
+          </section>
         </header>
-
-        <section id="books" class="toolbar" aria-label="検索条件">
-          <label class="search-box">
-            <span>検索</span>
-            <input id="search-input" type="search" placeholder="教科書名・授業名" autocomplete="off" />
-          </label>
-
-          <label>
-            <span>学部</span>
-            <select id="faculty-filter">
-              <option value="">すべて</option>
-            </select>
-          </label>
-
-          <label>
-            <span>状態</span>
-            <select id="status-filter">
-              <option value="">すべて</option>
-              <option value="AVAILABLE">出品中</option>
-              <option value="NEGOTIATING">交渉中</option>
-              <option value="SOLD">売却済み</option>
-            </select>
-          </label>
-        </section>
 
         <section class="content-grid">
           <div class="book-region" aria-live="polite">

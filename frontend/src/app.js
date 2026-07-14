@@ -399,10 +399,20 @@ function renderBooks(books, session) {
     const title = document.createElement("h3");
     const meta = document.createElement("p");
     const price = document.createElement("span");
-    const action = document.createElement("button");
 
     card.className = "book-card";
     card.setAttribute("aria-current", String(book.id === state.activeBookId));
+    card.setAttribute("role", "button");
+    card.setAttribute("tabindex", "0");
+    card.setAttribute("aria-label", `${book.title}の詳細を表示`);
+    // カード全体を選択面にし、マウスとキーボードで同じ操作を行えるようにする。
+    card.addEventListener("click", () => selectBook(book.id));
+    card.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        selectBook(book.id);
+      }
+    });
     badges.className = "book-badges";
     badges.append(createStatusBadge(book.status));
     if (session.authenticated && book.sellerId === session.userId) {
@@ -429,13 +439,9 @@ function renderBooks(books, session) {
 
     price.className = "price";
     price.textContent = formatPrice(book.price);
-    action.className = "small-button";
-    action.type = "button";
-    action.textContent = "詳細";
-    action.addEventListener("click", () => selectBook(book.id));
 
     header.append(title, badges);
-    body.append(header, meta, price, action);
+    body.append(header, meta, price);
     card.append(cover, body);
     refs.bookList.append(card);
   });

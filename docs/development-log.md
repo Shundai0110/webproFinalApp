@@ -595,3 +595,103 @@
 ### 次にやること
 - ユーザーが`develop`をGitHubへpushし、支払方法未登録・Free構成を確認してBlueprintをDeployする。
 - デプロイ後にREADMEのhealth、2ブラウザ共有、終了時resetを確認する。
+
+## 2026-07-15 01:55
+## 8a2f900, 最終チェック（README確認記録は未コミット）
+### 依頼内容
+- Render公開構成がMySQLを使わずNode.js組み込みSQLiteを利用し、Express APIだけが読み書きし、複数ブラウザで共有しながら終了時に破棄・再生成することをREADMEへ記載する。すでに記載済みなら追加しない。
+
+### 実施内容
+- 変更したファイル: `docs/development-log.md`（確認記録のみ）
+- READMEの採用技術、公開構成、Renderデプロイ設計、起動方法、任意のMySQLモードを確認した。
+- 指定された内容がすべて既存記述に含まれていたため、READMEへの重複追記は行わなかった。
+
+### 確認内容
+- 実行したコマンド: `rg`, `nl`, `git diff --check`, `git status`
+- 確認結果: Node.js組み込みSQLite、Express API経由、同一プロセス内の複数ブラウザ共有、最終ブラウザ終了・サービス停止時の破棄、次回起動時のschema・seed再作成、RenderでMySQLを使用しない方針をREADMEで確認した。`git diff --check`も成功した。
+- 未確認事項: Render実環境での起動・データ共有・破棄・再作成。
+
+### 次にやること
+- READMEの現行記述を維持し、Renderデプロイ後に一時SQLiteの共有と再生成を確認する。
+
+## 2026-07-15 02:09
+## 8a2f900, 最終チェック（今回のUI変更は未コミット）
+### 依頼内容
+- 指示をJSON形式へ変換してから、ベース色を`rgb(0, 30, 98)`、アクセント色を`rgb(253, 208, 0)`に統一し、角を活かしたデザインへ変更する。
+- 取引・通知見出しの重なりと改行を防ぎ、教科書の「詳細」ボタンを廃止してカード全体を選択可能にする。backendや業務仕様は変更しない。
+
+### 実施内容
+- 変更したファイル: `docs/ui-design-prompt.json`, `frontend/styles.css`, `frontend/src/app.js`, `frontend/tests/smoke.test.mjs`, `backend/e2e/two-user.spec.mjs`, `docs/agent-memory/maker.md`, `docs/development-log.md`
+- 指定内容を対象範囲、配色、レイアウト、操作、制約、検証項目に分けたJSON仕様として保存した。
+- サイドバーを指定の紺、主要ボタンと選択状態を指定の黄に変更し、補助色を寒色系の無彩色、紺、黄へ整理した。角丸を縮小し、直線的な境界とオフセット影を使用した。
+- 取引・通知を独立セクションとして配置し、見出しと件数を非改行にした。取引内の教科書名も1行の省略表示にした。
+- 教科書カードの「詳細」ボタンを削除し、カード全体のクリック、Enter、Spaceで詳細を選択できるようにした。API、backend、認証・取引仕様は変更していない。
+
+### 確認内容
+- 実行したコマンド: `npm test`, `npm run build`, `npm run test:browser`, `git diff --check`, Playwright `screenshot`, Playwrightによるサイドバー下端撮影
+- テスト結果: frontend 2 test files、backend 4 test files、Playwright 2利用者E2E 1件がすべて成功した。カードのEnter操作、自己購入拒否、別利用者からの購入相談を確認した。
+- 画面確認: 1440x1000、390x844、デスクトップのサイドバー下端を確認し、取引・通知見出しの重なり、文字のはみ出し、主要UIの崩れがないことを確認した。
+- 未確認事項: Render実環境での表示、OS・ブラウザごとのフォント差による表示。
+
+### 次にやること
+- 必要な場合は今回の未コミット差分をcommitし、Render無料環境へ反映後にデスクトップとモバイルで再確認する。
+
+## 2026-07-15 02:35
+## 8a2f900, 最終チェック（今回のUI再調整は未コミット）
+### 依頼内容
+- 追加指示をJSON形式へ変換してから、黄色の主張を抑え、特にサイドバー横の黄色を削除または弱める。
+- 検索を常時上部に付くヘッダーへ変更し、自分の出品を薄青背景にして、出品セクションをボックス化しない。
+
+### 実施内容
+- 変更したファイル: `docs/ui-design-refinement-prompt.json`, `frontend/index.html`, `frontend/styles.css`, `frontend/tests/smoke.test.mjs`, `docs/agent-memory/maker.md`, `docs/development-log.md`
+- 追加指示を前回テーマに対する上書き仕様としてJSONへ保存した。
+- サイドバー外縁、主要ボタン、件数、選択影などから鮮やかな黄色を除去し、紺、白、薄青へ変更した。黄系は交渉中バッジの小面積だけに限定した。
+- ページタイトルと検索条件を`site-header`へ統合し、画面上端に固定した。モバイルでは検索を1行、学部と状態を2列にして固定ヘッダーの高さを抑えた。
+- 自分の出品カードを薄青背景にし、出品セクションの外枠、背景、影を削除した。backend、API、取引仕様は変更していない。
+
+### 確認内容
+- 実行したコマンド: JSON構文確認、`npm test`, `npm run build`, `npm run test:browser`, `git diff --check`, Playwright画面撮影・計算スタイル確認
+- テスト結果: frontend 8件、backend 11件、Playwright 2利用者E2E 1件がすべて成功し、frontend/backend buildも成功した。
+- 画面確認: 1440x1000と390x844で表示を確認した。スクロール後の検索ヘッダー上端は`0px`、出品セクションの外枠は`0px`、影は`none`、自分の出品背景は`rgb(222, 235, 255)`だった。
+- 未確認事項: Render実環境、SafariなどChromium以外のブラウザでの固定ヘッダー表示。
+
+### 次にやること
+- 未コミットのUI変更をcommitし、Render無料環境へ反映する場合は固定ヘッダーとモバイル表示を再確認する。
+
+## 2026-07-15 02:39
+## 8a2f900, 最終チェック（今回の主要操作色変更は未コミット）
+### 依頼内容
+- ボタンと`K`アイコンを元の黄色へ戻す。
+
+### 実施内容
+- 変更したファイル: `frontend/styles.css`, `frontend/tests/smoke.test.mjs`, `docs/agent-memory/maker.md`, `docs/development-log.md`
+- 元の黄色`rgb(253, 208, 0)`を主要操作専用の`--action`として追加し、`K`ブランドマーク、サイドバー主要ボタン、取引承諾ボタン、購入・出品ボタンへ適用した。
+- サイドバー外縁、補助ボタン、件数表示、カード選択影は前回の抑えた配色を維持した。hoverとdisabledの状態色も分離した。
+
+### 確認内容
+- 実行したコマンド: `npm --prefix frontend test`, `npm --prefix frontend run build`, `git diff --check`, Playwright画面撮影・計算スタイル確認
+- テスト結果: frontend 8件が成功し、frontend JavaScript構文検査も成功した。
+- 画面確認: `K`ブランドマークとサイドバー主要ボタンが`rgb(253, 208, 0)`、サイドバー外縁が`rgb(36, 70, 130)`であることを確認した。
+- 未確認事項: Render実環境とChromium以外のブラウザ表示。CSSのみの変更のためbackendテストと2利用者E2Eは再実行していない。
+
+### 次にやること
+- 未コミットのUI変更をcommitし、公開環境へ反映する場合は主要ボタンのhover・disabled状態を再確認する。
+
+## 2026-07-15 02:54
+## 8a2f900, 最終チェック（今回の区切り線変更は未コミット）
+### 依頼内容
+- 教科書一覧と出品の間に線を引いて境界を分かりやすくする。中断後、もう一度やり直す。
+
+### 実施内容
+- 変更したファイル: `frontend/styles.css`, `frontend/tests/smoke.test.mjs`, `docs/agent-memory/maker.md`, `docs/development-log.md`
+- 出品セクションの上辺だけにテーマ色`rgb(0, 30, 98)`の2px区切り線を追加した。
+- 左右と下辺、背景、影は追加せず、出品セクションをボックス化しない設計を維持した。
+
+### 確認内容
+- 実行したコマンド: `npm --prefix frontend test`, `npm --prefix frontend run build`, `git diff --check`, Playwright画面撮影・計算スタイル確認
+- テスト結果: frontend 8件とfrontend buildが成功した。
+- 画面確認: 上辺が`2px solid rgb(0, 30, 98)`、左右と下辺が`0px`であることを確認した。
+- 未確認事項: Render実環境とChromium以外のブラウザ表示。CSSのみの変更のためbackendテストは再実行していない。
+
+### 次にやること
+- 未コミットのUI変更をcommitし、公開環境へ反映する場合は区切り線の表示を再確認する。

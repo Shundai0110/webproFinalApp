@@ -1,0 +1,43 @@
+{
+  "role": "maker",
+  "scope": "frontend_design_only",
+  "theme": {
+    "base": {
+      "rgb": [0, 30, 98],
+      "hex": "#001e62",
+      "usage": ["sidebar", "headings", "borders", "focus states"]
+    },
+    "accent": {
+      "rgb": [253, 208, 0],
+      "hex": "#fdd000",
+      "usage": ["primary buttons", "selected states", "section accents"]
+    },
+    "supporting_colors": "Use cool neutral, navy, and gold-adjacent colors with semantic red reserved for errors and sold states."
+  },
+  "layout": {
+    "visual_style": "angular",
+    "corner_radius": "small_or_square",
+    "sidebar_headings": {
+      "prevent_wrapping": true,
+      "prevent_transaction_notification_overlap": true
+    }
+  },
+  "book_list_interaction": {
+    "remove_detail_button": true,
+    "select_from_anywhere_on_card": true,
+    "keyboard_accessible": true
+  },
+  "constraints": {
+    "change_backend": false,
+    "change_api_contracts": false,
+    "change_business_rules": false,
+    "change_feature_scope": false
+  },
+  "verification": [
+    "frontend tests",
+    "backend tests",
+    "two-browser end-to-end test",
+    "desktop screenshot",
+    "mobile screenshot"
+  ]
+}
