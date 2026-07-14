@@ -2,6 +2,9 @@
 
 MySQL / Prisma 用の補足資料置き場です。実行対象のschemaとmigrationは `backend/prisma/` にあります。
 
+- 接続確認: <br>
+npx prisma studio --port 5555 --browser none
+
 ## 方針
 
 - Prisma schema は `backend/prisma/schema.prisma` に置く。
@@ -17,6 +20,7 @@ MySQL / Prisma 用の補足資料置き場です。実行対象のschemaとmigra
 - DB モデル: `User`, `Book`, `Transaction`, `Notification`
 - migration: `backend/prisma/migrations/20260714122700_init/`
 - seed: 5架空ユーザー、4架空Book、2Transaction、2成立通知
+- ローカル適用先: `.local/mysql`, `127.0.0.1:3307/keio_book_demo`（git管理外、手動起動）
 
 ## MySQL接続前の承諾
 

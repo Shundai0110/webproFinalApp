@@ -29,7 +29,7 @@ Reviewer は独立性を保つため、このファイルを参照しません�
 ## 現在の残タスク
 
 - frontendからbackend APIへの接続は未実装。
-- backend版コメントAPIと常設MySQL環境は未実装。認証・Books・Transactionsの一時MySQL E2E確認は完了済み。
+- backend版コメントAPIは未実装。ローカルMySQLは `.local/mysql` をデータディレクトリとして127.0.0.1:3307で使用し、手動起動が必要である。
 - ブラウザ上の一連の手動操作は未確認。
 
 ## 2026-07-14 の実装
@@ -57,4 +57,5 @@ Reviewer は独立性を保つため、このファイルを参照しません�
 - 一時MySQLで登録、出品、購入相談、片側承諾、双方成立、ポイント移動、成立通知のE2E確認を完了した。
 - `backend/prisma/seed.ts` に5架空ユーザー、4架空Book、交渉中・成立済みTransaction各1件、成立通知2件の冪等seedを追加した。`database/seed.sql` は手動確認用の同等SQLである。
 - seed再実行時は取引後の仮想ポイントを巻き戻さず、実在個人情報・認証情報・決済情報を投入しない。
-- MySQLへ接続するmigration、seed、API起動は、接続先・変更内容・件数・既存データ影響を提示し、ユーザーの明示承諾後だけ実行する。今回のseedは未投入である。
+- MySQLへ接続するmigration、seed、API起動は、接続先・変更内容・件数・既存データ影響を提示し、ユーザーの明示承諾後だけ実行する。承諾後、ローカル3307番へmigrationとseedを適用した。
+- `keio_book_demo` にはUser 5件、Book 4件、Transaction 2件、Notification 2件があり、seed再実行後も件数が増えないことを確認した。

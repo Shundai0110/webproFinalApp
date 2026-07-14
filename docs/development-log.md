@@ -401,3 +401,45 @@
 ### 次にやること
 - MySQL接続先と変更内容を提示し、ユーザーの明示承諾を得た場合だけ `npm run prisma:deploy` と `npm run prisma:seed` を実行する。
 - 適用後にUser・Book・Transaction・Notification件数、外部キー、再seed時の冪等性を確認する。
+
+## 2026-07-14 21:06
+## 未コミット, chore: ローカルMySQLを作成してmigrationとseedを適用
+### 依頼内容
+- 提示済みの内容を承諾し、MySQLへ接続してデータベースを作成する。
+
+### 実施内容
+- 変更したファイル: `.gitignore`, `backend/.env`（git管理外）, `docs/agent-memory/maker.md`, `docs/development-log.md`
+- 既存3306番MySQLは `demo` ユーザーがなく、root管理接続にもsudoパスワードが必要だったため変更しなかった。
+- 他DBへ影響しない隔離MySQLを `.local/mysql` に初期化し、127.0.0.1:3307で起動した。
+- `keio_book_demo` DBと、そのDBだけに権限を持つローカル `demo` ユーザーを作成した。
+- `20260714122700_init` migrationを適用し、User・Book・Transaction・Notificationテーブル、外部キー、インデックスを作成した。
+- 承諾済みの架空seedを投入し、再実行しても重複しないことを確認した。
+- git管理外の `backend/.env` に3307番の接続URLを設定し、backend APIを4000番で起動した。
+
+### 確認内容
+- 実行したコマンド: `mysqladmin`, `mysqld --initialize-insecure`, `mysqld`, `mysql`, `npm run prisma:deploy`, `npm run prisma:seed`（2回）, `npm run dev`, `curl`, `npm test`, `git diff --check`
+- テスト結果: migrationとseedが成功。User 5件、Book 4件、Transaction 2件、Notification 2件。PENDING取引とNEGOTIATING Book、COMPLETED取引とSOLD Bookの整合を確認。再seed後も件数は不変。Books APIが4件を返し、health APIが正常。frontend 2件・backend 3件の自動テストも成功した。
+- 未確認事項: OS標準3306番MySQLへの適用、MySQLのOSサービス自動起動、外部公開環境、バックアップ・復旧手順。
+
+### 次にやること
+- 必要に応じてローカルMySQL起動・停止をnpmスクリプト化する。
+- frontendの `apiClient.js` を4000番のExpress APIへ接続する。
+
+## 2026-07-14 22:01
+## 未コミット, docs: データベース確認方法を案内
+### 依頼内容
+- ユーザーが作成済みMySQLの内容を確認する方法を案内する。
+
+### 実施内容
+- 変更したファイル: `docs/development-log.md`
+- Prisma Studioをローカルの5555番ポートで起動し、ブラウザからDBを確認できる状態にした。
+- MySQL CLIでテーブル一覧と各テーブルのレコード件数を読み取り専用で確認した。
+
+### 確認内容
+- 実行したコマンド: `npx prisma studio --port 5555 --browser none`, `curl -I http://127.0.0.1:5555`, `mysql --protocol=TCP ... -e "SHOW TABLES; SELECT ..."`
+- テスト結果: Prisma StudioがHTTP 200を返した。`users` 5件、`books` 4件、`transactions` 2件、`notifications` 2件を確認した。
+- 未確認事項: Prisma Studio画面のユーザー環境での目視操作。
+
+### 次にやること
+- 確認終了後、Prisma Studioは起動したターミナルで `Ctrl+C` を押して停止する。
+- MySQLの起動・停止手順をnpmスクリプト化する場合は別途実装する。

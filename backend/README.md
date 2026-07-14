@@ -29,6 +29,8 @@ npm run dev
 
 既定URLは `http://127.0.0.1:4000` です。MySQL接続先は `DATABASE_URL`、許可するfrontend Originは `FRONTEND_ORIGIN` で設定します。本番では必ず十分に長い `SESSION_SECRET` を設定してください。
 
+現在のローカル確認環境は、git管理外の `.local/mysql` をデータディレクトリとして `127.0.0.1:3307/keio_book_demo` を使用します。接続値はgit管理外の `backend/.env` にあります。これは外部公開用や本番用の設定ではありません。
+
 ## コマンド
 
 ```bash
