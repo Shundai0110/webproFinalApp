@@ -829,6 +829,10 @@ export class EphemeralStore {
       ["民法総則ケースブック", 1800, "授業で扱った章に付箋跡があります。本文の破れはありません。", "/assets/book-law.svg", 3, "AVAILABLE", 2024, "民法総則", "法学部", "法律学科", 2, "REQUIRED", "専門科目"],
       ["線形代数スタンダード", 900, "演習問題の解説が多い参考書。購入相談中のサンプルです。", "/assets/book-math.svg", 4, "NEGOTIATING", 2025, "線形代数", "理工学部", "学門 A", 1, "REFERENCE", "専門科目"],
       ["マーケティング基礎", 700, "過去年度版。取引成立済みのサンプルとして表示しています。", "/assets/book-business.svg", 5, "SOLD", 2023, "マーケティング論", "商学部", "商学科", 2, "REQUIRED", "専門科目"],
+      ["ミクロ経済学ワークブック", 1300, "演習問題中心の架空教材です。ページの折れや書き込みはない設定です。", "/assets/book-generic.svg", 1, "AVAILABLE", 2026, "ミクロ経済学", "経済学部", "経済学科", 1, "REFERENCE", "専門科目"],
+      ["憲法判例ガイド", 1600, "主要判例をまとめた架空教材です。カバーに軽い擦れがある設定です。", "/assets/book-generic.svg", 3, "AVAILABLE", 2025, "憲法 I", "法学部", "法律学科", 1, "REQUIRED", "専門科目"],
+      ["Pythonデータ分析入門", 2000, "サンプルコードを扱う架空教材です。書き込みはない設定です。", "/assets/book-generic.svg", 4, "AVAILABLE", 2026, "情報工学基礎", "理工学部", "学門 A", 1, "REQUIRED", "専門科目"],
+      ["英語アカデミック・ライティング", 800, "レポート構成を学ぶ架空教材です。表紙に小さな擦れがある設定です。", "/assets/book-generic.svg", 2, "AVAILABLE", 2025, "Academic Writing", "文学部", "人文社会学科", 1, "REFERENCE", "語学"],
     ].forEach((book) => insertBook.run(...(book as SqlValue[]), now, now));
 
     const insertTransaction = this.#db.prepare(`

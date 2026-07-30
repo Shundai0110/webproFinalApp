@@ -47,7 +47,7 @@ npm start
 
 ## Seed
 
-`backend/prisma/seed.ts` が正本です。5架空ユーザー、4架空Book、交渉中と成立済みのTransaction各1件、成立通知2件を冪等に作成します。既存ユーザーを再利用する場合、プロフィール項目は更新しますが、取引後の `pointBalance` は巻き戻しません。`database/seed.sql` は手動確認用の同等SQLです。
+`backend/prisma/seed.ts` が正本です。5架空ユーザー、8架空Book、交渉中と成立済みのTransaction各1件、成立通知2件を冪等に作成します。既存ユーザーを再利用する場合、プロフィール項目は更新しますが、取引後の `pointBalance` は巻き戻しません。`database/seed.sql` は手動確認用の同等SQLです。
 
 ## 取引整合性
 
