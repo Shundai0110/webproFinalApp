@@ -60,7 +60,7 @@ let toastTimer = 0;
 let renderedProfileSignature = "";
 
 function formatPrice(price) {
-  return price === 0 ? "譲渡" : `${price.toLocaleString("ja-JP")} pt`;
+  return price === 0 ? "譲渡" : `${price.toLocaleString("ja-JP")}円`;
 }
 
 function formatSessionExpiry(expiresAt) {
@@ -120,7 +120,7 @@ function updateSession() {
   refs.sessionMeta.textContent = session.authenticated
     ? `${session.faculty} ${session.department || "学科未設定"} ${session.year}年`
     : "デモアカウントを選択";
-  refs.sessionPoints.textContent = `${session.pointBalance.toLocaleString("ja-JP")} pt`;
+  refs.sessionPoints.textContent = `${session.pointBalance.toLocaleString("ja-JP")}円（デモ）`;
   refs.sessionState.textContent = session.authenticated ? "接続中" : "未接続";
   refs.sessionState.classList.toggle("is-active", session.authenticated);
   refs.sessionExpiry.textContent = formatSessionExpiry(session.expiresAt);
@@ -272,7 +272,7 @@ function createPaymentPreview(book, session, isOwnListing) {
 
   panel.className = "payment-preview";
   heading.className = "payment-heading";
-  title.textContent = "仮想ポイント支払い";
+  title.textContent = "デモ円支払い";
   badge.className = "demo-payment-badge";
   badge.textContent = "DEMO";
   heading.append(title, badge);
@@ -282,7 +282,7 @@ function createPaymentPreview(book, session, isOwnListing) {
     ? [
         ["現在の残高", formatPrice(session.pointBalance)],
         ["取引額", formatPrice(book.price)],
-        ["成立後の残高", balanceAfter >= 0 ? formatPrice(balanceAfter) : "ポイント不足"],
+        ["成立後の残高", balanceAfter >= 0 ? formatPrice(balanceAfter) : "残高不足"],
       ]
     : [["取引額", formatPrice(book.price)]];
   rows.forEach(([term, value]) => {
@@ -296,7 +296,7 @@ function createPaymentPreview(book, session, isOwnListing) {
   });
 
   notice.className = "payment-notice";
-  notice.textContent = "換金不可・現金価値なし。双方承諾時にデモポイントだけを移動します。";
+  notice.textContent = "表示はデモ円です。換金不可・現金価値なしで、実際の金銭は移動しません。";
   panel.append(heading, summary, notice);
   return panel;
 }
@@ -509,7 +509,7 @@ function renderDetail(book, session) {
   } else if (isOwnListing) {
     purchaseButton.textContent = "自分の出品は購入不可";
   } else if (!hasEnoughPoints) {
-    purchaseButton.textContent = "仮想ポイント不足";
+    purchaseButton.textContent = "デモ残高不足";
   } else {
     purchaseButton.textContent = book.status === "AVAILABLE" ? "購入相談を開始" : "購入相談不可";
   }

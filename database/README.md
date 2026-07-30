@@ -19,7 +19,7 @@ npx prisma studio --port 5555 --browser none
 
 - DB モデル: `User`, `Book`, `Transaction`, `Notification`
 - migration: `backend/prisma/migrations/20260714122700_init/`
-- seed: 5架空ユーザー、4架空Book、2Transaction、2成立通知
+- seed: 5架空ユーザー、8架空Book、2Transaction、2成立通知
 - ローカル適用先: `.local/mysql`, `127.0.0.1:3307/keio_book_demo`（git管理外、手動起動）
 
 ## MySQL接続前の承諾

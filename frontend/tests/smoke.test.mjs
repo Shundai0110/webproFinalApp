@@ -14,7 +14,8 @@ test("HTML loads the application entrypoint", async () => {
   assert.match(html, /id="demo-user-select"/);
   assert.match(html, /id="profile-form"/);
   assert.match(html, /id="account-form"/);
-  assert.match(html, /初期残高 5,000 pt/);
+  assert.match(html, /初期残高 5,000円（デモ）/);
+  assert.doesNotMatch(html, /\bpt\b/);
 });
 
 test("seed data contains marketplace states", async () => {
@@ -24,6 +25,10 @@ test("seed data contains marketplace states", async () => {
   assert.match(data, /SOLD/);
   assert.match(data, /REQUIRED/);
   assert.match(data, /REFERENCE/);
+  assert.match(data, /ミクロ経済学ワークブック/);
+  assert.match(data, /憲法判例ガイド/);
+  assert.match(data, /Pythonデータ分析入門/);
+  assert.match(data, /英語アカデミック・ライティング/);
 });
 
 test("api client exposes the backend API boundary", async () => {
@@ -73,8 +78,10 @@ test("design theme and whole-card selection are applied", async () => {
 test("payment UI is demo points only", async () => {
   const html = await readFile(join(root, "index.html"), "utf8");
   const app = await readFile(join(root, "src", "app.js"), "utf8");
-  assert.match(app, /仮想ポイント支払い/);
+  assert.match(app, /デモ円支払い/);
   assert.match(app, /換金不可・現金価値なし/);
+  assert.match(app, /toLocaleString\("ja-JP"\)}円/);
+  assert.doesNotMatch(app, /toLocaleString\("ja-JP"\)} pt/);
   assert.match(app, /購入・支払いを承諾/);
   assert.doesNotMatch(html, /card-number|cvc|bank-account/i);
 });

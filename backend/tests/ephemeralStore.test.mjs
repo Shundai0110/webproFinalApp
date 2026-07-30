@@ -10,6 +10,8 @@ import {
 test("ephemeral database enforces trade rules and resets all runtime changes", () => {
   ephemeralStore.reset();
   const initial = ephemeralStore.stats();
+  assert.equal(initial.books, 8);
+  assert.ok(ephemeralStore.listBooks().some((book) => book.title === "Pythonデータ分析入門"));
   const book = ephemeralStore.listBooks({ status: "AVAILABLE" })[0];
   const sellerBefore = ephemeralStore.getUser(book.sellerId);
   const buyerBefore = ephemeralStore

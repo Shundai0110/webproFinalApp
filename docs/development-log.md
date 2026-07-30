@@ -695,3 +695,25 @@
 
 ### 次にやること
 - 未コミットのUI変更をcommitし、公開環境へ反映する場合は区切り線の表示を再確認する。
+
+## 2026-07-31 02:29
+## 4fe7bce, デザインの変更”（今回の変更は未コミット）
+### 依頼内容
+- 画面の`pt`表記を円表記へ変更し、出品例の教科書を4件程度追加する。
+
+### 実施内容
+- 変更したファイル: `frontend/index.html`, `frontend/src/app.js`, `frontend/src/data.js`, `frontend/tests/smoke.test.mjs`, `backend/src/lib/ephemeralStore.ts`, `backend/prisma/seed.ts`, `backend/tests/ephemeralStore.test.mjs`, `database/seed.sql`, `README.md`, `backend/README.md`, `database/README.md`, `docs/agent-memory/maker.md`, `docs/development-log.md`
+- 金額を`1,200円`、プロフィール残高を`5,000円（デモ）`と表示し、出品欄を`デモ価格（円）`へ変更した。
+- 支払い欄に`DEMO`と「換金不可・現金価値なし・実際の金銭は移動しない」旨を残し、内部の仮想ポイント処理は変更していない。
+- 経済・法学・理工・文学系の架空教材4件を追加し、一時SQLite、Prisma seed、手動SQL、frontend参照データの初期Bookを8件へ揃えた。
+- MySQLへの接続、seed適用、実決済機能の追加は行っていない。
+
+### 確認内容
+- 実行したコマンド: `npm test`, `npm run build`, `npm run test:browser`, `git diff --check`, `rg`, Playwright画面撮影・DOM確認
+- テスト結果: frontend 2 test files、backend 4 test files、Playwright 2利用者E2E 1件がすべて成功し、frontend/backend buildも成功した。
+- 画面確認: 1440x1000と390x844で8件表示、全価格の円表記、プロフィールの`円（デモ）`、画面本文に`pt`がないこと、追加カードに重なりがないことを確認した。
+- 未確認事項: Render実環境、任意のローカルMySQLへの追加seed適用。MySQL適用はユーザー承諾が必要。
+
+### 次にやること
+- 公開環境へ反映する場合はRender上で8件の初期化と円表示を確認する。
+- ローカルMySQLにも4件を追加する場合は、接続先と既存データへの影響を提示し、ユーザー承諾後にseedを実行する。
