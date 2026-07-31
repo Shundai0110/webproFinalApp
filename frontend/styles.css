@@ -337,6 +337,11 @@ label span {
   border-color: #7990c2;
 }
 
+.transaction-list li.is-cancelled {
+  border-color: #6d7fa8;
+  color: #c8d2e8;
+}
+
 .transaction-list li strong {
   display: block;
   overflow: hidden;
@@ -351,16 +356,33 @@ label span {
   line-height: 1.45;
 }
 
+.transaction-actions {
+  display: grid;
+  gap: 6px;
+  margin-top: 9px;
+}
+
 .transaction-action {
   width: 100%;
   min-height: 34px;
-  margin-top: 9px;
+  margin-top: 0;
   border: 1px solid var(--action);
   border-radius: 2px;
   background: var(--action);
   color: var(--brand);
   font-size: 0.76rem;
   font-weight: 800;
+}
+
+.transaction-action.is-cancel {
+  border-color: #d8a1aa;
+  background: transparent;
+  color: #ffe8ec;
+}
+
+.transaction-action.is-cancel:hover {
+  border-color: #f0bcc5;
+  background: #5f2140;
 }
 
 .transaction-action:hover {
@@ -799,6 +821,17 @@ a:focus-visible,
   line-height: 1.5;
 }
 
+.payment-warning {
+  margin: 0;
+  padding: 9px 10px;
+  border-left: 3px solid #9b5c00;
+  background: #fff4d6;
+  color: #663c00;
+  font-size: 0.78rem;
+  font-weight: 700;
+  line-height: 1.5;
+}
+
 .comment-section {
   display: grid;
   gap: 12px;
@@ -948,6 +981,12 @@ a:focus-visible,
 .toast.is-visible {
   opacity: 1;
   transform: translateY(0);
+}
+
+.toast.is-warning {
+  border-color: #9b5c00;
+  border-top-color: var(--accent);
+  background: #663c00;
 }
 
 .empty-state {

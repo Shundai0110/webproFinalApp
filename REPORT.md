@@ -8,13 +8,37 @@
 
 # 設計の説明
 
-本アプリは、静的SPAのfrontend、Express APIのbackend、データベースの三層に分離している。frontendはHTML、CSS、JavaScriptで構成し、画面描画とイベント処理を`frontend/src/app.js`、API通信を`frontend/src/apiClient.js`に集約する。ブラウザは同一オリジンの`/api`へ`fetch`で接続し、署名付きデモセッションのトークン、有効期限、一時クライアントIDだけを`sessionStorage`に保持する。User、Book、Transaction、Comment、Notification、残高などのドメインデータはブラウザストレージへ保存しない。
+## 構成
 
-backendはTypeScriptとExpressで実装し、routes、controllers、services、repositoriesへ責務を分割している。デモ認証では2時間有効な署名付きBearerトークンを発行し、認証が必要なAPIではトークンを検証する。プロフィール更新、出品、購入相談、承諾などは入力項目を許可リストで制限し、所有者や取引当事者を変更不能なUser IDで判定する。購入者と出品者の双方承諾時には、Transactionの完了、Bookの売却済み更新、双方のデモ残高更新、通知作成を単一のDBトランザクションで実行し、処理途中の不整合を防止する。
+本アプリは、実際のお金や個人情報を扱わずに売買の流れを再現するデモである。静的SPA、Express API、DBの三層に分け、画面描画は`app.js`、API通信は`apiClient.js`、backendの処理はroutes、controllers、services、domain、repositoriesに分担させた。frontendとbackendは同じExpressプロセスから配信し、同一オリジンの`/api`で通信する。
 
-無料公開時のデータベースには、Node.js組み込みの`node:sqlite`によるインメモリSQLiteを使用する。アプリ起動時にテーブル、外部キー、制約、index、架空seedを作成し、同じサーバープロセスへ接続する複数ブラウザで共有する。最後のブラウザ終了、一定時間の通信断、またはサーバー再起動時にはデータを破棄してseed状態へ戻すため、永続的な個人情報や取引情報を残さない。PrismaとMySQLのモデル、migration、seedもローカル検証用として保持しているが、Renderの無料公開構成では外部MySQLや永続ディスクを使用しない。
+入力値、利用者、所有者、自己購入、残高、状態遷移はbackendで確認し、更新後はAPIからデータを再取得する。User、Book、Transaction、Comment、Notification、残高はブラウザへ保存せず、`sessionStorage`には署名付きtoken、有効期限、client IDだけを保存する。起動後は30秒ごとにheartbeatを送り、アカウント切り替えや各操作の後に画面を更新する。
 
-公開構成はfrontendとbackendを1つのExpressプロセスから配信するRender Free Web Serviceを想定している。APIにはインメモリrate limit、入力検証、認証・認可、DB接続を含むhealth check、個人情報を含めない500系JSONログを実装している。動作確認にはfrontendテスト、backendのドメイン・一時DB・セキュリティ・構造テスト、API E2E、2つの独立したブラウザコンテキストを使うPlaywright E2Eを用いる。API E2Eでは自己購入拒否、双方承諾、残高移動、データ初期化を、ブラウザE2Eでは利用者間の出品共有と購入相談を確認する。
+## 認証と権限
+
+デモアカウントはニックネーム、学部、学科、学年だけで作成し、初期残高5,000ポイントを付ける。実在する連絡先、パスワード、本人確認書類、決済情報は登録せず、追加数は初期分を含め20件までとする。
+
+セッションはHMAC-SHA256で署名したBearer tokenを使い、2時間で失効する。署名鍵は`SESSION_SECRET`で管理し、不正な形式、改ざん、期限切れは401で拒否する。Bookの変更は出品者本人、Transactionの参照・承諾・撤回は取引当事者だけに許可し、自己購入、第三者操作、重複操作、成立後の撤回もAPIで拒否する。
+
+## 取引とデータ
+
+主なデータはUser、Book、Transaction、Notificationで、一時SQLiteにはCommentも保存する。外部キー、CHECK制約、indexを設定し、存在しないIDや未定義の状態を保存できないようにした。
+
+出品時はBookを`AVAILABLE`で作成し、購入相談で`NEGOTIATING`、双方承諾で`SOLD`へ変更する。Transactionは`PENDING`で作成し、片側承諾中は状態を維持し、双方承諾で`COMPLETED`にする。承認撤回は`PENDING`中の本人分だけに限定する。購入申請取り消しは購入者だけに許可し、Transactionを`CANCELLED`、Bookを`AVAILABLE`へ戻す。出品取り消しは購入相談前の`AVAILABLE`だけを`CANCELLED`にする。
+
+購入相談はBookを条件付きで更新して重複を防ぎ、一時SQLiteでは表示価格と提示額も比較する。購入申請取り消し時はBookとTransaction、成立時は双方の残高、Book、Transaction、通知を1つのDB transactionで更新し、途中で失敗すれば全体を元に戻す。成立後の返金・承認撤回・取引取消は未実装である。
+
+## 保存とセキュリティ
+
+無料公開では`node:sqlite`の`:memory:`DBを使い、8件の架空Bookを含むseedを複数ブラウザで共有する。最後のブラウザ終了時または90秒間heartbeatがない場合に初期化し、手動初期化は利用者1件以下、同時接続は200件までとする。データはRenderの停止や再起動でも消えるためバックアップせず、seedから再作成する。
+
+ローカル検証ではPrismaとMySQLも使えるが、Render無料公開ではMySQLやPersistent Diskを使わない。Comment APIは一時SQLite専用である。SQLはprepared statement、APIは許可項目と値域の検証、本文・ページ件数の上限、CSPやCORSなどのHTTP設定、1分180件のrate limitを使用する。入力値、token、IPはログへ残さず、`/api/health`でDB接続を確認する。実決済用のUI、API、DB項目も作らない。
+
+## 公開とテスト
+
+Renderでは無料Web Serviceを1つ使い、Node.js 24.14.1、`HOST=0.0.0.0`、一時SQLite、frontend同梱で起動する。DBとrate limitはプロセス間で共有しないため、単一Node.jsプロセスを前提とする。
+
+frontend・backend単体、API E2E、Playwrightで、認証、関連度、自己購入拒否、出品取り消し、購入申請取り消し、承認撤回、双方成立、残高移動、DB初期化、2ブラウザ間の共有を確認している。現状は一覧の先頭50件、取引・通知の先頭4件だけを表示し、ページ移動、画像・アイコン・出品内容の編集、成立後の取引取消・返金、401・403監査ログ、MySQLのCommentは未実装である。Render実環境とChromium以外も自動テストしていない。
 
 # 4. こだわりポイント
 
@@ -42,6 +66,6 @@ backendはTypeScriptとExpressで実装し、routes、controllers、services、r
 
 ## 4.4. 各操作へのアクセスを簡単に
 
-デスクトップでは、アカウント選択、プロフィール編集、主要画面への移動、取引、通知を左側の固定サイドバーへまとめた。教科書を探している途中でもアカウント切り替えや取引承諾・承認撤回へ移動でき、取引件数と通知件数も同じサイドバー内で確認できる。取引欄には購入者・出品者それぞれの承諾状態と操作ボタンを直接表示し、別の取引専用画面を開かずに処理できる。
+デスクトップでは、アカウント選択、プロフィール編集、主要画面への移動、取引、通知を左側の固定サイドバーへまとめた。教科書を探している途中でもアカウント切り替えや取引承諾・承認撤回・購入申請取り消しへ移動でき、取引件数と通知件数も同じサイドバー内で確認できる。取引欄には購入者・出品者それぞれの承諾状態と操作ボタンを直接表示し、別の取引専用画面を開かずに処理できる。
 
 検索欄は画面上部へ固定し、教科書詳細も一覧の横へ追従表示する。教科書カードの任意の位置から詳細を選択でき、詳細画面から購入相談、コメント、自分の出品取り消しまで続けて操作できる。画面幅が狭い場合はサイドバー、検索、一覧、詳細、出品フォームを縦方向へ並べ替え、同じ機能へアクセスできるレスポンシブ構成としている。

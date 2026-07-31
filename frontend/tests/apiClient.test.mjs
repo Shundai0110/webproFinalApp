@@ -156,10 +156,17 @@ test("frontend uses the shared API and keeps only the signed session in browser 
       return json(cancelled);
     }
     if (method === "PATCH" && path === "/transactions/20") {
-      transactions[0] = {
-        ...transactions[0],
-        buyerApproved: body.action === "APPROVE",
-      };
+      transactions[0] =
+        body.action === "CANCEL_PURCHASE"
+          ? {
+              ...transactions[0],
+              status: "CANCELLED",
+              book: { ...transactions[0].book, status: "AVAILABLE" },
+            }
+          : {
+              ...transactions[0],
+              buyerApproved: body.action === "APPROVE",
+            };
       return json(transactions[0]);
     }
     return apiError(`unexpected mock route: ${method} ${path}`, 404);
@@ -170,6 +177,13 @@ test("frontend uses the shared API and keeps only the signed session in browser 
   assert.equal(api.getSession().authenticated, true);
   assert.equal(api.getSession().userId, "1");
   assert.equal(api.listBooks().length, 1);
+  assert.deepEqual(api.getPurchaseBudget(4000), {
+    balance: 5000,
+    pendingAmount: 1200,
+    requestedAmount: 4000,
+    remainingAmount: -200,
+    exceedsBalance: true,
+  });
   assert.ok(
     requests.some(
       (request) =>
@@ -206,6 +220,23 @@ test("frontend uses the shared API and keeps only the signed session in browser 
     (request) => request.path === "/transactions/20" && request.method === "PATCH",
   );
   assert.equal(revokeRequest.body.action, "REVOKE_APPROVAL");
+
+  const purchaseCancelled = await api.cancelPurchaseRequest(20);
+  assert.equal(purchaseCancelled.status, "CANCELLED");
+  const purchaseCancelRequest = requests.find(
+    (request) =>
+      request.path === "/transactions/20" &&
+      request.method === "PATCH" &&
+      request.body.action === "CANCEL_PURCHASE",
+  );
+  assert.ok(purchaseCancelRequest);
+  assert.deepEqual(api.getPurchaseBudget(4000), {
+    balance: 5000,
+    pendingAmount: 0,
+    requestedAmount: 4000,
+    remainingAmount: 1000,
+    exceedsBalance: false,
+  });
 
   const account = await api.createDemoAccount({
     nickname: "Demo Three",

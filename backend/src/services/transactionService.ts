@@ -1,6 +1,10 @@
 import { Prisma } from "@prisma/client";
 import { env } from "../config/env.js";
-import { nextApprovalState, revokedApprovalState } from "../domain/transactionPolicy.js";
+import {
+  assertBuyerCanCancelPurchase,
+  nextApprovalState,
+  revokedApprovalState,
+} from "../domain/transactionPolicy.js";
 import { AppError } from "../errors/AppError.js";
 import { prisma } from "../lib/prisma.js";
 import { ephemeralStore } from "../lib/ephemeralStore.js";
@@ -43,8 +47,18 @@ export async function requestTransaction(currentUserId: number, input: unknown) 
 
       const buyer = await tx.user.findUnique({ where: { id: currentUserId } });
       if (!buyer) throw new AppError(401, "UNAUTHENTICATED", "購入者が見つかりません");
-      if (buyer.pointBalance < offeredPrice) {
-        throw new AppError(409, "INSUFFICIENT_POINTS", "仮想ポイント残高が不足しています");
+      const pendingPurchases = await tx.transaction.aggregate({
+        where: { buyerId: currentUserId, status: "PENDING" },
+        _sum: { offeredPrice: true },
+      });
+      const pendingAmount = pendingPurchases._sum.offeredPrice ?? 0;
+      // 未成立の申請額も利用予定額として扱い、複数申請による残高超過を防ぐ。
+      if (pendingAmount + offeredPrice > buyer.pointBalance) {
+        throw new AppError(
+          409,
+          "PURCHASE_BUDGET_EXCEEDED",
+          "申請中の購入額と今回の取引額の合計が現在の残高を超えます",
+        );
       }
 
       // 条件付き更新により、同じBookへの同時購入相談を1件だけに限定する。
@@ -86,22 +100,30 @@ export async function getTransaction(currentUserId: number, id: number) {
   return transaction;
 }
 
-export async function approveTransaction(currentUserId: number, id: number, input: unknown) {
+export async function updateTransaction(currentUserId: number, id: number, input: unknown) {
   const body = inputRecord(input);
   allowOnly(body, ["action"]);
   const action = requiredString(body, "action", 20);
-  if (action !== "APPROVE" && action !== "REVOKE_APPROVAL") {
+  if (
+    action !== "APPROVE" &&
+    action !== "REVOKE_APPROVAL" &&
+    action !== "CANCEL_PURCHASE"
+  ) {
     throw new AppError(
       400,
       "VALIDATION_ERROR",
-      "actionはAPPROVEまたはREVOKE_APPROVALを指定してください",
+      "actionはAPPROVE、REVOKE_APPROVAL、CANCEL_PURCHASEのいずれかを指定してください",
     );
   }
 
   if (env.storageMode === "ephemeral") {
-    return action === "APPROVE"
-      ? ephemeralStore.approveTransaction(currentUserId, id)
-      : ephemeralStore.revokeTransactionApproval(currentUserId, id);
+    if (action === "APPROVE") {
+      return ephemeralStore.approveTransaction(currentUserId, id);
+    }
+    if (action === "REVOKE_APPROVAL") {
+      return ephemeralStore.revokeTransactionApproval(currentUserId, id);
+    }
+    return ephemeralStore.cancelPurchaseRequest(currentUserId, id);
   }
 
   return prisma.$transaction(
@@ -115,6 +137,33 @@ export async function approveTransaction(currentUserId: number, id: number, inpu
       }
       if (transaction.status !== "PENDING") {
         throw new AppError(409, "TRANSACTION_CLOSED", "この取引はすでに終了しています");
+      }
+
+      if (action === "CANCEL_PURCHASE") {
+        assertBuyerCanCancelPurchase(transaction, currentUserId);
+        if (transaction.book.status !== "NEGOTIATING") {
+          throw new AppError(409, "BOOK_STATE_CONFLICT", "教科書が取引中ではありません");
+        }
+
+        // 申請とBookを同じtransactionで戻し、再出品可能状態だけが残らないようにする。
+        const cancelled = await tx.transaction.updateMany({
+          where: { id, buyerId: currentUserId, status: "PENDING" },
+          data: { status: "CANCELLED" },
+        });
+        if (cancelled.count !== 1) {
+          throw new AppError(409, "TRANSACTION_CLOSED", "この取引はすでに終了しています");
+        }
+        const released = await tx.book.updateMany({
+          where: { id: transaction.bookId, status: "NEGOTIATING" },
+          data: { status: "AVAILABLE" },
+        });
+        if (released.count !== 1) {
+          throw new AppError(409, "BOOK_STATE_CONFLICT", "教科書の状態が変更されています");
+        }
+        return tx.transaction.findUniqueOrThrow({
+          where: { id },
+          include: transactionInclude,
+        });
       }
 
       if (action === "REVOKE_APPROVAL") {

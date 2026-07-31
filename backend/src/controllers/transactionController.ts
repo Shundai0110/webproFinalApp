@@ -3,10 +3,10 @@ import { sendSuccess } from "../lib/http.js";
 import { parsePositiveId } from "../lib/validation.js";
 import { currentSession } from "../middlewares/authMiddleware.js";
 import {
-  approveTransaction,
   getTransaction,
   listOwnTransactions,
   requestTransaction,
+  updateTransaction,
 } from "../services/transactionService.js";
 
 export const index: RequestHandler = async (req, res) => {
@@ -27,19 +27,15 @@ export const show: RequestHandler = async (req, res) => {
 };
 
 export const update: RequestHandler = async (req, res) => {
-  const revoked = req.body?.action === "REVOKE_APPROVAL";
-  const transaction = await approveTransaction(
+  const action = req.body?.action;
+  const transaction = await updateTransaction(
     currentSession(res.locals).userId,
     parsePositiveId(req.params.id, "transactionId"),
     req.body,
   );
-  sendSuccess(
-    res,
-    transaction,
-    transaction.status === "COMPLETED"
-      ? "取引が成立しました"
-      : revoked
-        ? "承認を取り消しました"
-        : "取引を承諾しました",
-  );
+  let message = "取引を承諾しました";
+  if (transaction.status === "COMPLETED") message = "取引が成立しました";
+  if (action === "REVOKE_APPROVAL") message = "承認を取り消しました";
+  if (action === "CANCEL_PURCHASE") message = "購入申請を取り消しました";
+  sendSuccess(res, transaction, message);
 };

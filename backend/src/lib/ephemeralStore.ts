@@ -1,7 +1,11 @@
 import { randomUUID } from "node:crypto";
 import { DatabaseSync } from "node:sqlite";
 import { MAX_DEMO_ACCOUNTS, NEW_DEMO_ACCOUNT_POINTS } from "../domain/constants.js";
-import { nextApprovalState, revokedApprovalState } from "../domain/transactionPolicy.js";
+import {
+  assertBuyerCanCancelPurchase,
+  nextApprovalState,
+  revokedApprovalState,
+} from "../domain/transactionPolicy.js";
 import { AppError } from "../errors/AppError.js";
 
 type SqlValue = null | number | bigint | string | NodeJS.ArrayBufferView;
@@ -433,8 +437,21 @@ export class EphemeralStore {
       }
       const buyer = this.getUser(currentUserId);
       if (!buyer) throw new AppError(401, "UNAUTHENTICATED", "購入者が見つかりません");
-      if (Number(buyer.pointBalance) < offeredPrice) {
-        throw new AppError(409, "INSUFFICIENT_POINTS", "仮想ポイント残高が不足しています");
+      const pendingRow = this.#db
+        .prepare(`
+          SELECT COALESCE(SUM(offered_price), 0) AS pendingAmount
+          FROM transactions
+          WHERE buyer_id = ? AND status = 'PENDING'
+        `)
+        .get(currentUserId) as Row;
+      const pendingAmount = Number(pendingRow.pendingAmount);
+      // SQLite transaction内で合計を確認し、申請作成との間に状態がずれないようにする。
+      if (pendingAmount + offeredPrice > Number(buyer.pointBalance)) {
+        throw new AppError(
+          409,
+          "PURCHASE_BUDGET_EXCEEDED",
+          "申請中の購入額と今回の取引額の合計が現在の残高を超えます",
+        );
       }
 
       const now = isoNow();
@@ -569,6 +586,44 @@ export class EphemeralStore {
           isoNow(),
           id,
         );
+      return this.getTransaction(id)!;
+    });
+  }
+
+  cancelPurchaseRequest(currentUserId: number, id: number) {
+    return this.#transaction(() => {
+      const transaction = this.getTransaction(id);
+      if (!transaction) {
+        throw new AppError(404, "TRANSACTION_NOT_FOUND", "取引が見つかりません");
+      }
+      if (transaction.status !== "PENDING") {
+        throw new AppError(409, "TRANSACTION_CLOSED", "この取引はすでに終了しています");
+      }
+      assertBuyerCanCancelPurchase(transaction, currentUserId);
+      if (transaction.book?.status !== "NEGOTIATING") {
+        throw new AppError(409, "BOOK_STATE_CONFLICT", "教科書が取引中ではありません");
+      }
+
+      const now = isoNow();
+      // TransactionとBookを一括で戻し、取消後の申請額を残高計算から解放する。
+      const cancelled = this.#db
+        .prepare(`
+          UPDATE transactions SET status = 'CANCELLED', updated_at = ?
+          WHERE id = ? AND buyer_id = ? AND status = 'PENDING'
+        `)
+        .run(now, id, currentUserId);
+      if (cancelled.changes !== 1) {
+        throw new AppError(409, "TRANSACTION_CLOSED", "この取引はすでに終了しています");
+      }
+      const released = this.#db
+        .prepare(`
+          UPDATE books SET status = 'AVAILABLE', updated_at = ?
+          WHERE id = ? AND status = 'NEGOTIATING'
+        `)
+        .run(now, Number(transaction.bookId));
+      if (released.changes !== 1) {
+        throw new AppError(409, "BOOK_STATE_CONFLICT", "教科書の状態が変更されています");
+      }
       return this.getTransaction(id)!;
     });
   }
