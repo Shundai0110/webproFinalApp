@@ -378,6 +378,12 @@ export async function createListing(input) {
   return mapBook(book);
 }
 
+export async function cancelListing(bookId) {
+  const book = await request(`/books/${Number(bookId)}`, { method: "DELETE" });
+  await refreshMarketplace();
+  return mapBook(book);
+}
+
 export async function requestPurchase(bookId) {
   const book = cache.books.find((candidate) => candidate.id === String(bookId));
   if (!book) throw new Error("対象の教科書が見つかりません");
@@ -397,6 +403,15 @@ export async function approveTransaction(transactionId) {
   const transaction = await request(`/transactions/${Number(transactionId)}`, {
     method: "PATCH",
     body: { action: "APPROVE" },
+  });
+  await refreshMarketplace();
+  return mapTransaction(transaction);
+}
+
+export async function revokeTransactionApproval(transactionId) {
+  const transaction = await request(`/transactions/${Number(transactionId)}`, {
+    method: "PATCH",
+    body: { action: "REVOKE_APPROVAL" },
   });
   await refreshMarketplace();
   return mapTransaction(transaction);

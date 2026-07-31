@@ -37,8 +37,10 @@ test("api client exposes the backend API boundary", async () => {
   assert.match(apiClient, /export function listBooks/);
   assert.match(apiClient, /export async function initializeApi/);
   assert.match(apiClient, /export async function createListing/);
+  assert.match(apiClient, /export async function cancelListing/);
   assert.match(apiClient, /export async function requestPurchase/);
   assert.match(apiClient, /export async function approveTransaction/);
+  assert.match(apiClient, /export async function revokeTransactionApproval/);
   assert.match(apiClient, /export function listNotifications/);
   assert.match(apiClient, /export async function startDemoSession/);
   assert.match(apiClient, /export async function updateProfile/);

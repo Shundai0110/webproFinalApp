@@ -606,7 +606,8 @@ a:focus-visible,
 
 .small-button,
 .primary-button,
-.ghost-button {
+.ghost-button,
+.danger-button {
   min-height: 40px;
   border-radius: 2px;
   border: 1px solid transparent;
@@ -630,6 +631,23 @@ a:focus-visible,
   border-color: #aab3c4;
   background: #cdd3de;
   color: #5e6980;
+}
+
+.danger-button {
+  border-color: var(--red);
+  background: #ffffff;
+  color: var(--red);
+}
+
+.danger-button:hover {
+  background: #f8e8eb;
+}
+
+.danger-button:disabled {
+  cursor: not-allowed;
+  border-color: #aab3c4;
+  background: #eef1f5;
+  color: #68748a;
 }
 
 .ghost-button,

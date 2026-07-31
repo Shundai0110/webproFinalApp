@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { issueDemoSession, verifyDemoSession } from "../dist/lib/demoSession.js";
-import { nextApprovalState } from "../dist/domain/transactionPolicy.js";
+import {
+  nextApprovalState,
+  revokedApprovalState,
+} from "../dist/domain/transactionPolicy.js";
 import { calculateRelatedScore } from "../dist/services/rankingService.js";
 
 test("signed demo sessions round-trip and reject tampering", () => {
@@ -34,6 +37,21 @@ test("transactions complete only after buyer and seller approvals", () => {
     () => nextApprovalState({ ...transaction, buyerApproved: true }, 1),
     /すでに承諾/,
   );
+
+  const revoked = revokedApprovalState({ ...transaction, ...buyer }, 1);
+  assert.deepEqual(revoked, {
+    buyerApproved: false,
+    sellerApproved: false,
+  });
+  assert.deepEqual(
+    revokedApprovalState({ ...transaction, buyerApproved: true, sellerApproved: true }, 2),
+    {
+      buyerApproved: true,
+      sellerApproved: false,
+    },
+  );
+  assert.throws(() => revokedApprovalState(transaction, 1), /取り消し済み/);
+  assert.throws(() => revokedApprovalState({ ...transaction, ...buyer }, 3), /購入者または出品者/);
 });
 
 test("book ranking favors matching demo profiles", () => {

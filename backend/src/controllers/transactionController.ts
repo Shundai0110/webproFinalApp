@@ -27,6 +27,7 @@ export const show: RequestHandler = async (req, res) => {
 };
 
 export const update: RequestHandler = async (req, res) => {
+  const revoked = req.body?.action === "REVOKE_APPROVAL";
   const transaction = await approveTransaction(
     currentSession(res.locals).userId,
     parsePositiveId(req.params.id, "transactionId"),
@@ -35,6 +36,10 @@ export const update: RequestHandler = async (req, res) => {
   sendSuccess(
     res,
     transaction,
-    transaction.status === "COMPLETED" ? "取引が成立しました" : "取引を承諾しました",
+    transaction.status === "COMPLETED"
+      ? "取引が成立しました"
+      : revoked
+        ? "承認を取り消しました"
+        : "取引を承諾しました",
   );
 };

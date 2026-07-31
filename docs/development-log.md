@@ -717,3 +717,67 @@
 ### 次にやること
 - 公開環境へ反映する場合はRender上で8件の初期化と円表示を確認する。
 - ローカルMySQLにも4件を追加する場合は、接続先と既存データへの影響を提示し、ユーザー承諾後にseedを実行する。
+
+## 2026-07-31 02:43
+## d16ff8f, ptから円表記に（今回の変更は未コミット）
+### 依頼内容
+- 現在の実装を基に、`REPORT.md`の「サービス説明」と「設計の説明」を記入する。
+
+### 実施内容
+- 変更したファイル: `REPORT.md`, `backend/tests/api.e2e.mjs`, `docs/agent-memory/maker.md`, `docs/development-log.md`
+- サービス説明へ対象利用者、検索・出品・コメント・購入相談・双方承諾、関連度順、8件の架空教材、円表示のデモ通貨、個人情報・実決済を扱わない制約を記載した。
+- 設計説明へfrontend・backend・DBの三層構成、署名付きBearerデモ認証、入力許可リスト、DBトランザクション、一時SQLiteの初期化、Render Free構成、テスト範囲を記載した。
+- 初期Bookを8件へ増やした後もAPI E2Eが旧4件を前提としていたため、総件数とreset件数の期待値を出品後9件・reset後8件へ更新した。製品処理は変更していない。
+
+### 確認内容
+- 実行したコマンド: `rg`, `nl`, `npm test`, `npm run test:e2e`, `git diff --check`
+- テスト結果: frontend 8件、backend 11件、API E2E 1件が成功した。API E2Eの初回実行はサンドボックスのlisten制限で失敗し、権限付き実行で旧seed件数の期待値ずれを確認・修正した。
+- 未確認事項: Markdownレンダリング結果。製品コードは変更していないためPlaywrightブラウザE2Eは再実行していない。
+
+### 次にやること
+- `REPORT.md`の文量や提出形式に指定がある場合は、その形式へ調整する。
+- REPORTとAPI E2E期待値の変更をcommitする。
+
+## 2026-07-31 03:09
+## d16ff8f, ptから円表記に（今回の変更は未コミット）
+### 依頼内容
+- 承認の取り消しと出品の取り消し機能を実装する。
+
+### 実施内容
+- 変更したファイル: `backend/src/domain/transactionPolicy.ts`, `backend/src/lib/ephemeralStore.ts`, `backend/src/services/transactionService.ts`, `backend/src/controllers/transactionController.ts`, `frontend/src/apiClient.js`, `frontend/src/app.js`, `frontend/styles.css`, `backend/tests/domain.test.mjs`, `backend/tests/ephemeralStore.test.mjs`, `backend/tests/api.e2e.mjs`, `backend/e2e/two-user.spec.mjs`, `frontend/tests/apiClient.test.mjs`, `frontend/tests/smoke.test.mjs`, `README.md`, `AGENTS.md`, `backend/README.md`, `REPORT.md`, `docs/agent-memory/maker.md`, `docs/development-log.md`
+- `PATCH /api/transactions/:id`へ`REVOKE_APPROVAL`を追加した。`PENDING`中の取引当事者が自分の承認だけを撤回でき、相手の承認は保持する。重複撤回、第三者、成立済み取引の撤回は拒否する。
+- frontendの取引欄へ確認付きの「承認を取り消す」操作を追加し、撤回後は再承認できるようにした。
+- 既存の出品取消APIをfrontendへ接続し、出品者本人の`AVAILABLE`な出品だけ詳細画面から取り消せるようにした。交渉中・売却済みは操作不可とした。
+- 一時SQLiteとPrisma/MySQL経路の規則を揃え、README、AGENTS、backend README、REPORTを現行仕様へ更新した。外部MySQLへの接続や実データ更新は行っていない。
+
+### 確認内容
+- 実行したコマンド: `npm test`, `npm run build`, `npm run test:e2e`, `npm run test:browser`, `git diff --check`, Playwrightによる1440x1000・390x844画面撮影とDOM確認
+- テスト結果: frontend 2 test files、backend 4 test files、API E2E 1件、Playwright 2利用者E2E 1件がすべて成功し、frontend/backend buildも成功した。
+- API確認: 所有者以外の出品取消拒否、所有者の取消、購入者の承認・撤回・再承認、双方成立、成立後の撤回拒否、残高移動を確認した。
+- 画面確認: 1440pxと390pxで「出品を取り消す」「承認を取り消す」を確認し、横方向のはみ出しがないことを確認した。
+- 未確認事項: Render実環境、任意のローカルMySQLモードでのE2E、Chromium以外のブラウザ。
+
+### 次にやること
+- 今回の未コミット差分をcommitし、Render無料環境へ反映する場合は出品取消と承認撤回を2アカウントで再確認する。
+- 取引自体のキャンセル、出品内容の編集、成立済み取引の取消・返金は今回の範囲外であり未実装。
+
+## 2026-07-31 03:21
+## d16ff8f, ptから円表記に（今回の変更は未コミット）
+### 依頼内容
+- `REPORT.md`の「こだわりポイント」を、それぞれの要点を参考にして実装とREADMEに基づく内容へ書き換える。
+
+### 実施内容
+- 変更したファイル: `REPORT.md`, `docs/agent-memory/maker.md`, `docs/development-log.md`
+- 「アカウント情報に紐付いた並び替え」へ関連度の評価項目、検索後の並び順、出品時の学部初期選択と学科・学年の自動設定を記載した。
+- 「教科書情報の入力義務化」へfrontendの必須項目、学部・教材種別の選択式UI、Express APIによる再検証と許可リストを記載した。
+- 「UIの分かりやすさ・見やすさ」へ慶應を想起させる紺と黄の配色、hover・トースト、カード全体の選択、角を抑えた直線的なデザインを記載した。
+- 「各操作へのアクセスを簡単に」へ取引・通知を含むサイドバー、固定検索、追従詳細、レスポンシブ配置を記載した。製品コードは変更していない。
+
+### 確認内容
+- 実行したコマンド: `sed`, `rg`, `git diff --check`, `git diff`
+- 確認結果: `rankingService.ts`, `bookService.ts`, `app.js`, `apiClient.js`, `index.html`, `styles.css`, `README.md`と照合し、4項目の説明が現行実装と一致することを確認した。差分の空白エラーはない。
+- 未確認事項: Markdownを提出先の表示環境でレンダリングした結果。
+
+### 次にやること
+- 提出先に文字数制限や指定テンプレートがある場合は、その形式へ調整する。
+- `REPORT.md`を含む現在の未コミット差分をcommitする。
