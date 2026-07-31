@@ -7,6 +7,7 @@ test("two browser contexts share a listing without allowing self-purchase", asyn
   const buyerPage = await buyerContext.newPage();
   const title = `Browser E2E ${Date.now()}`;
   const cancelledTitle = `Cancelled Browser E2E ${Date.now()}`;
+  const overBudgetTitle = `Purchase Limit ${Date.now()}`;
 
   await Promise.all([sellerPage.goto("/"), buyerPage.goto("/")]);
   await expect(sellerPage.locator("#session-name")).toHaveText("A. Suzuki");
@@ -37,6 +38,12 @@ test("two browser contexts share a listing without allowing self-purchase", asyn
   await expect(sellerPage.locator("#toast")).toContainText("出品を取り消しました");
   await expect(cancellableCard).toHaveCount(0);
 
+  await sellerPage.locator('#listing-form input[name="title"]').fill(overBudgetTitle);
+  await sellerPage.locator('#listing-form input[name="course"]').fill("残高警告E2E演習");
+  await sellerPage.locator('#listing-form input[name="price"]').fill("3000");
+  await sellerPage.locator("#listing-form button[type=submit]").click();
+  await expect(sellerPage.locator("#toast")).toContainText("出品を追加しました");
+
   await buyerPage.reload();
   await expect(buyerPage.locator("#session-name")).toHaveText("S. Tanaka");
   const buyerCard = buyerPage.locator(".book-card", { hasText: title });
@@ -56,12 +63,27 @@ test("two browser contexts share a listing without allowing self-purchase", asyn
     buyerTransaction.getByRole("button", { name: "購入・支払いを承諾" }),
   ).toBeVisible();
 
+  await buyerPage.locator(".book-card", { hasText: overBudgetTitle }).click();
+  await expect(buyerPage.locator(".payment-warning")).toContainText(
+    "購入申請の合計が現在の残高を超える",
+  );
+  await expect(
+    buyerPage.getByRole("button", { name: "購入申請の合計が残高超過" }),
+  ).toBeDisabled();
+
+  buyerPage.once("dialog", (dialog) => dialog.accept());
+  await buyerTransaction.getByRole("button", { name: "購入申請を取り消す" }).click();
+  await expect(buyerPage.locator("#toast")).toContainText("購入申請を取り消しました");
+  await expect(buyerTransaction).toContainText("キャンセル");
+  await expect(buyerPage.locator(".book-card", { hasText: title })).toContainText("出品中");
+
   await sellerPage.reload();
-  await expect(sellerPage.locator("#transaction-list")).toContainText(title);
+  const sellerTransaction = sellerPage.locator("#transaction-list li", { hasText: title });
+  await expect(sellerTransaction).toContainText("キャンセル");
   await sellerPage.locator(".book-card", { hasText: title }).click();
   await expect(
-    sellerPage.getByRole("button", { name: "取引中のため取り消し不可" }),
-  ).toBeDisabled();
+    sellerPage.getByRole("button", { name: "出品を取り消す" }),
+  ).toBeEnabled();
 
   await buyerContext.close();
   await sellerContext.close();

@@ -104,3 +104,58 @@ test("ephemeral database enforces trade rules and resets all runtime changes", (
   closeDemoClient(secondClient.clientId);
   assert.equal(ephemeralStore.stats().users, initial.users);
 });
+
+test("ephemeral database rejects purchase requests whose pending total exceeds balance", () => {
+  ephemeralStore.reset();
+  const buyer = ephemeralStore.getUser(2);
+  const firstBook = ephemeralStore
+    .listBooks({ status: "AVAILABLE" })
+    .find((book) => book.title === "民法総則ケースブック");
+  const secondBook = ephemeralStore
+    .listBooks({ status: "AVAILABLE" })
+    .find((book) => book.title === "憲法判例ガイド");
+
+  assert.ok(buyer);
+  assert.ok(firstBook);
+  assert.ok(secondBook);
+  assert.equal(buyer.pointBalance, 3200);
+
+  const firstRequest = ephemeralStore.requestTransaction(
+    buyer.id,
+    firstBook.id,
+    firstBook.price,
+  );
+  assert.throws(
+    () => ephemeralStore.requestTransaction(buyer.id, secondBook.id, secondBook.price),
+    (error) => {
+      assert.equal(error.code, "PURCHASE_BUDGET_EXCEEDED");
+      assert.match(error.message, /合計が現在の残高を超えます/);
+      return true;
+    },
+  );
+  assert.equal(ephemeralStore.getBook(secondBook.id).status, "AVAILABLE");
+
+  const sellerApproved = ephemeralStore.approveTransaction(firstBook.sellerId, firstRequest.id);
+  assert.equal(sellerApproved.sellerApproved, true);
+  assert.throws(
+    () => ephemeralStore.cancelPurchaseRequest(firstBook.sellerId, firstRequest.id),
+    /購入者だけが購入申請を取り消せます/,
+  );
+
+  const cancelled = ephemeralStore.cancelPurchaseRequest(buyer.id, firstRequest.id);
+  assert.equal(cancelled.status, "CANCELLED");
+  assert.equal(cancelled.book.status, "AVAILABLE");
+  assert.equal(ephemeralStore.getUser(buyer.id).pointBalance, buyer.pointBalance);
+  assert.throws(
+    () => ephemeralStore.cancelPurchaseRequest(buyer.id, firstRequest.id),
+    /すでに終了しています/,
+  );
+
+  const requestAfterCancellation = ephemeralStore.requestTransaction(
+    buyer.id,
+    secondBook.id,
+    secondBook.price,
+  );
+  assert.equal(requestAfterCancellation.status, "PENDING");
+  ephemeralStore.reset();
+});

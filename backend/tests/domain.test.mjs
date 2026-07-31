@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { issueDemoSession, verifyDemoSession } from "../dist/lib/demoSession.js";
 import {
+  assertBuyerCanCancelPurchase,
   nextApprovalState,
   revokedApprovalState,
 } from "../dist/domain/transactionPolicy.js";
@@ -52,6 +53,12 @@ test("transactions complete only after buyer and seller approvals", () => {
   );
   assert.throws(() => revokedApprovalState(transaction, 1), /取り消し済み/);
   assert.throws(() => revokedApprovalState({ ...transaction, ...buyer }, 3), /購入者または出品者/);
+
+  assert.doesNotThrow(() => assertBuyerCanCancelPurchase(transaction, 1));
+  assert.throws(
+    () => assertBuyerCanCancelPurchase(transaction, 2),
+    /購入者だけが購入申請を取り消せます/,
+  );
 });
 
 test("book ranking favors matching demo profiles", () => {

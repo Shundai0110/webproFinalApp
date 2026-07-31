@@ -340,6 +340,26 @@ export function listTransactions() {
   return clone(cache.transactions);
 }
 
+export function getPurchaseBudget(nextAmount = 0) {
+  const session = getSession();
+  const pendingAmount = cache.transactions
+    .filter(
+      (transaction) =>
+        transaction.status === "PENDING" && transaction.buyerId === session.userId,
+    )
+    .reduce((total, transaction) => total + transaction.offeredPrice, 0);
+  const requestedAmount = Math.max(0, Number(nextAmount) || 0);
+  const remainingAmount = session.pointBalance - pendingAmount - requestedAmount;
+
+  return {
+    balance: session.pointBalance,
+    pendingAmount,
+    requestedAmount,
+    remainingAmount,
+    exceedsBalance: session.authenticated && remainingAmount < 0,
+  };
+}
+
 export function listNotifications() {
   return clone(cache.notifications);
 }
@@ -387,6 +407,12 @@ export async function cancelListing(bookId) {
 export async function requestPurchase(bookId) {
   const book = cache.books.find((candidate) => candidate.id === String(bookId));
   if (!book) throw new Error("対象の教科書が見つかりません");
+  const budget = getPurchaseBudget(book.price);
+  if (budget.exceedsBalance) {
+    const error = new Error("申請中の購入額と今回の取引額の合計が現在の残高を超えます");
+    error.code = "PURCHASE_BUDGET_EXCEEDED";
+    throw error;
+  }
   const transaction = await request("/transactions", {
     method: "POST",
     body: {
@@ -412,6 +438,15 @@ export async function revokeTransactionApproval(transactionId) {
   const transaction = await request(`/transactions/${Number(transactionId)}`, {
     method: "PATCH",
     body: { action: "REVOKE_APPROVAL" },
+  });
+  await refreshMarketplace();
+  return mapTransaction(transaction);
+}
+
+export async function cancelPurchaseRequest(transactionId) {
+  const transaction = await request(`/transactions/${Number(transactionId)}`, {
+    method: "PATCH",
+    body: { action: "CANCEL_PURCHASE" },
   });
   await refreshMarketplace();
   return mapTransaction(transaction);

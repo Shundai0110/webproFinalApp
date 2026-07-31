@@ -122,6 +122,13 @@ test("two demo users share API data and complete a virtual-point trade", async (
     .expect(409);
   assert.equal(completedRevoke.body.error.code, "TRANSACTION_CLOSED");
 
+  const completedCancel = await api
+    .patch(`/api/transactions/${transactionId}`)
+    .set("Authorization", `Bearer ${buyerToken}`)
+    .send({ action: "CANCEL_PURCHASE" })
+    .expect(409);
+  assert.equal(completedCancel.body.error.code, "TRANSACTION_CLOSED");
+
   const seller = await api
     .get("/api/users/me")
     .set("Authorization", `Bearer ${sellerToken}`)
@@ -155,4 +162,101 @@ test("two demo users share API data and complete a virtual-point trade", async (
   const health = await api.get("/api/health").expect(200);
   assert.equal(health.body.data.storage.status, "up");
   assert.equal(health.body.data.storage.probe, "SELECT 1");
+});
+
+test("purchase cancellation releases the book and pending purchase budget", async () => {
+  ephemeralStore.reset();
+  const api = request(createApp());
+  const buyerSession = await api.post("/api/auth/session").send({ userId: 2 }).expect(201);
+  const sellerSession = await api.post("/api/auth/session").send({ userId: 3 }).expect(201);
+  const buyerToken = buyerSession.body.data.session.token;
+  const sellerToken = sellerSession.body.data.session.token;
+  const authorization = { Authorization: `Bearer ${buyerToken}` };
+  const sellerAuthorization = { Authorization: `Bearer ${sellerToken}` };
+
+  const books = await api
+    .get("/api/books?page=1&pageSize=50")
+    .set(authorization)
+    .expect(200);
+  const firstBook = books.body.data.items.find(
+    (book) => book.title === "民法総則ケースブック",
+  );
+  const secondBook = books.body.data.items.find((book) => book.title === "憲法判例ガイド");
+  assert.ok(firstBook);
+  assert.ok(secondBook);
+
+  const requested = await api
+    .post("/api/transactions")
+    .set(authorization)
+    .send({ bookId: firstBook.id, offeredPrice: firstBook.price })
+    .expect(201);
+  const transactionId = requested.body.data.id;
+
+  const rejected = await api
+    .post("/api/transactions")
+    .set(authorization)
+    .send({ bookId: secondBook.id, offeredPrice: secondBook.price })
+    .expect(409);
+  assert.equal(rejected.body.error.code, "PURCHASE_BUDGET_EXCEEDED");
+  assert.match(rejected.body.error.message, /合計が現在の残高を超えます/);
+
+  const sellerApproved = await api
+    .patch(`/api/transactions/${transactionId}`)
+    .set(sellerAuthorization)
+    .send({ action: "APPROVE" })
+    .expect(200);
+  assert.equal(sellerApproved.body.data.status, "PENDING");
+  assert.equal(sellerApproved.body.data.sellerApproved, true);
+
+  const sellerCancel = await api
+    .patch(`/api/transactions/${transactionId}`)
+    .set(sellerAuthorization)
+    .send({ action: "CANCEL_PURCHASE" })
+    .expect(403);
+  assert.equal(sellerCancel.body.error.code, "FORBIDDEN");
+
+  const cancelled = await api
+    .patch(`/api/transactions/${transactionId}`)
+    .set(authorization)
+    .send({ action: "CANCEL_PURCHASE" })
+    .expect(200);
+  assert.equal(cancelled.body.data.status, "CANCELLED");
+  assert.equal(cancelled.body.data.book.status, "AVAILABLE");
+
+  const duplicateCancel = await api
+    .patch(`/api/transactions/${transactionId}`)
+    .set(authorization)
+    .send({ action: "CANCEL_PURCHASE" })
+    .expect(409);
+  assert.equal(duplicateCancel.body.error.code, "TRANSACTION_CLOSED");
+
+  const releasedBook = await api
+    .get(`/api/books/${firstBook.id}`)
+    .set(authorization)
+    .expect(200);
+  assert.equal(releasedBook.body.data.status, "AVAILABLE");
+
+  await api
+    .post("/api/transactions")
+    .set(authorization)
+    .send({ bookId: secondBook.id, offeredPrice: secondBook.price })
+    .expect(201);
+
+  const unchangedBuyer = await api
+    .get("/api/users/me")
+    .set(authorization)
+    .expect(200);
+  assert.equal(unchangedBuyer.body.data.pointBalance, 3200);
+
+  const unchangedSeller = await api
+    .get("/api/users/me")
+    .set(sellerAuthorization)
+    .expect(200);
+  assert.equal(unchangedSeller.body.data.pointBalance, 4100);
+
+  const secondBookAfterRequest = await api
+    .get(`/api/books/${secondBook.id}`)
+    .set(authorization)
+    .expect(200);
+  assert.equal(secondBookAfterRequest.body.data.status, "NEGOTIATING");
 });

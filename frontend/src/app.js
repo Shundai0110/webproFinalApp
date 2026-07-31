@@ -1,10 +1,12 @@
 import {
   approveTransaction,
   cancelListing,
+  cancelPurchaseRequest,
   createComment,
   createDemoAccount,
   createListing,
   endDemoSession,
+  getPurchaseBudget,
   getSession,
   initializeApi,
   listBooks,
@@ -65,6 +67,10 @@ function formatPrice(price) {
   return price === 0 ? "譲渡" : `${price.toLocaleString("ja-JP")}円`;
 }
 
+function formatAmount(amount) {
+  return `${amount.toLocaleString("ja-JP")}円`;
+}
+
 function formatSessionExpiry(expiresAt) {
   if (!expiresAt) return "外部認証には接続しません";
   return `有効期限 ${new Intl.DateTimeFormat("ja-JP", {
@@ -82,12 +88,14 @@ function formatTimestamp(value) {
   }).format(new Date(value));
 }
 
-function showToast(message) {
+function showToast(message, tone = "status") {
   window.clearTimeout(toastTimer);
   refs.toast.textContent = message;
+  refs.toast.classList.toggle("is-warning", tone === "warning");
   refs.toast.classList.add("is-visible");
   toastTimer = window.setTimeout(() => {
     refs.toast.classList.remove("is-visible");
+    refs.toast.classList.remove("is-warning");
   }, 2400);
 }
 
@@ -203,18 +211,23 @@ function renderTransactions(session) {
       transaction.offeredPrice,
     )}`;
     approvals.className = "transaction-approvals";
-    approvals.textContent = `購入者 ${transaction.buyerApproved ? "承諾済み" : "未承諾"} / 出品者 ${
-      transaction.sellerApproved ? "承諾済み" : "未承諾"
-    }`;
+    approvals.textContent =
+      transaction.status === "CANCELLED"
+        ? "購入者が購入申請を取り消しました"
+        : `購入者 ${transaction.buyerApproved ? "承諾済み" : "未承諾"} / 出品者 ${
+            transaction.sellerApproved ? "承諾済み" : "未承諾"
+          }`;
 
     item.append(title, meta, approvals);
 
     if (transaction.status === "PENDING") {
+      const actions = document.createElement("div");
       const action = document.createElement("button");
       const isBuyer = transaction.buyerId === session.userId;
       const alreadyApproved = isBuyer
         ? transaction.buyerApproved
         : transaction.sellerApproved;
+      actions.className = "transaction-actions";
       action.className = "transaction-action";
       action.type = "button";
       action.textContent = alreadyApproved
@@ -224,6 +237,9 @@ function renderTransactions(session) {
           : "販売を承諾";
       action.addEventListener("click", async () => {
         if (alreadyApproved && !window.confirm("自分の承認を取り消しますか？")) return;
+        [...actions.querySelectorAll("button")].forEach((button) => {
+          button.disabled = true;
+        });
         try {
           const updated = alreadyApproved
             ? await revokeTransactionApproval(transaction.id)
@@ -237,11 +253,43 @@ function renderTransactions(session) {
           render();
         } catch (error) {
           showToast(error.message);
+          [...actions.querySelectorAll("button")].forEach((button) => {
+            button.disabled = false;
+          });
         }
       });
-      item.append(action);
+      actions.append(action);
+
+      if (isBuyer) {
+        const cancel = document.createElement("button");
+        cancel.className = "transaction-action is-cancel";
+        cancel.type = "button";
+        cancel.textContent = "購入申請を取り消す";
+        cancel.addEventListener("click", async () => {
+          if (!window.confirm(`「${transaction.bookTitle}」の購入申請を取り消しますか？`)) {
+            return;
+          }
+          [...actions.querySelectorAll("button")].forEach((button) => {
+            button.disabled = true;
+          });
+          try {
+            await cancelPurchaseRequest(transaction.id);
+            showToast("購入申請を取り消しました");
+            render();
+          } catch (error) {
+            showToast(error.message);
+            [...actions.querySelectorAll("button")].forEach((button) => {
+              button.disabled = false;
+            });
+          }
+        });
+        actions.append(cancel);
+      }
+      item.append(actions);
     } else if (transaction.status === "COMPLETED") {
       item.classList.add("is-completed");
+    } else if (transaction.status === "CANCELLED") {
+      item.classList.add("is-cancelled");
     }
 
     refs.transactionList.append(item);
@@ -267,13 +315,14 @@ function renderNotifications(session) {
   });
 }
 
-function createPaymentPreview(book, session, isOwnListing) {
+function createPaymentPreview(book, session, isOwnListing, budget) {
   const panel = document.createElement("section");
   const heading = document.createElement("div");
   const title = document.createElement("h4");
   const badge = document.createElement("span");
   const summary = document.createElement("dl");
   const notice = document.createElement("p");
+  const warning = document.createElement("p");
 
   panel.className = "payment-preview";
   heading.className = "payment-heading";
@@ -282,12 +331,17 @@ function createPaymentPreview(book, session, isOwnListing) {
   badge.textContent = "DEMO";
   heading.append(title, badge);
 
-  const balanceAfter = session.pointBalance - book.price;
   const rows = session.authenticated && !isOwnListing
     ? [
-        ["現在の残高", formatPrice(session.pointBalance)],
+        ["現在の残高", formatAmount(session.pointBalance)],
+        ["申請中の購入額", formatAmount(budget.pendingAmount)],
         ["取引額", formatPrice(book.price)],
-        ["成立後の残高", balanceAfter >= 0 ? formatPrice(balanceAfter) : "残高不足"],
+        [
+          "すべて成立した場合",
+          budget.remainingAmount >= 0
+            ? formatAmount(budget.remainingAmount)
+            : `${formatAmount(Math.abs(budget.remainingAmount))}超過`,
+        ],
       ]
     : [["取引額", formatPrice(book.price)]];
   rows.forEach(([term, value]) => {
@@ -302,7 +356,19 @@ function createPaymentPreview(book, session, isOwnListing) {
 
   notice.className = "payment-notice";
   notice.textContent = "表示はデモ円です。換金不可・現金価値なしで、実際の金銭は移動しません。";
-  panel.append(heading, summary, notice);
+  panel.append(heading, summary);
+  if (
+    session.authenticated &&
+    !isOwnListing &&
+    book.status === "AVAILABLE" &&
+    budget.exceedsBalance
+  ) {
+    warning.className = "payment-warning";
+    warning.setAttribute("role", "alert");
+    warning.textContent = "購入申請の合計が現在の残高を超えるため、この申請は作成できません。";
+    panel.append(warning);
+  }
+  panel.append(notice);
   return panel;
 }
 
@@ -501,11 +567,16 @@ function renderDetail(book, session) {
   description.textContent = book.description;
 
   const isOwnListing = session.authenticated && book.sellerId === session.userId;
-  const hasEnoughPoints = session.pointBalance >= book.price;
+  const requestedAmount =
+    session.authenticated && !isOwnListing && book.status === "AVAILABLE" ? book.price : 0;
+  const purchaseBudget = getPurchaseBudget(requestedAmount);
   const canCancelListing = isOwnListing && book.status === "AVAILABLE";
   const canPurchase =
-    session.authenticated && book.status === "AVAILABLE" && !isOwnListing && hasEnoughPoints;
-  const paymentPreview = createPaymentPreview(book, session, isOwnListing);
+    session.authenticated &&
+    book.status === "AVAILABLE" &&
+    !isOwnListing &&
+    !purchaseBudget.exceedsBalance;
+  const paymentPreview = createPaymentPreview(book, session, isOwnListing, purchaseBudget);
   const commentsPanel = createCommentsPanel(book, session);
   purchaseButton.className = isOwnListing ? "danger-button" : "primary-button";
   purchaseButton.type = "button";
@@ -518,8 +589,8 @@ function renderDetail(book, session) {
       : book.status === "NEGOTIATING"
         ? "取引中のため取り消し不可"
         : "売却済み";
-  } else if (!hasEnoughPoints) {
-    purchaseButton.textContent = "デモ残高不足";
+  } else if (book.status === "AVAILABLE" && purchaseBudget.exceedsBalance) {
+    purchaseButton.textContent = "購入申請の合計が残高超過";
   } else {
     purchaseButton.textContent = book.status === "AVAILABLE" ? "購入相談を開始" : "購入相談不可";
   }
@@ -545,7 +616,10 @@ function renderDetail(book, session) {
       showToast("購入相談を作成しました");
       render();
     } catch (error) {
-      showToast(error.message);
+      showToast(
+        error.message,
+        error.code === "PURCHASE_BUDGET_EXCEEDED" ? "warning" : "status",
+      );
     }
   });
 

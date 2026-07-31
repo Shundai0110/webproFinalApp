@@ -41,3 +41,16 @@ export function revokedApprovalState(transaction: ApprovalState, currentUserId: 
     sellerApproved: isBuyer ? transaction.sellerApproved : false,
   };
 }
+
+export function assertBuyerCanCancelPurchase(
+  transaction: Pick<ApprovalState, "buyerId">,
+  currentUserId: number,
+) {
+  if (transaction.buyerId !== currentUserId) {
+    throw new AppError(
+      403,
+      "FORBIDDEN",
+      "購入者だけが購入申請を取り消せます",
+    );
+  }
+}
