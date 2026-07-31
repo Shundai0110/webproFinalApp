@@ -1,5 +1,6 @@
 import {
   approveTransaction,
+  cancelListing,
   createComment,
   createDemoAccount,
   createListing,
@@ -13,6 +14,7 @@ import {
   listTransactions,
   requestPurchase,
   resetDemoData,
+  revokeTransactionApproval,
   startDemoSession,
   updateProfile,
 } from "./apiClient.js";
@@ -215,20 +217,23 @@ function renderTransactions(session) {
         : transaction.sellerApproved;
       action.className = "transaction-action";
       action.type = "button";
-      action.disabled = alreadyApproved;
       action.textContent = alreadyApproved
-        ? "承諾済み"
+        ? "承認を取り消す"
         : isBuyer
           ? "購入・支払いを承諾"
           : "販売を承諾";
       action.addEventListener("click", async () => {
+        if (alreadyApproved && !window.confirm("自分の承認を取り消しますか？")) return;
         try {
-          const updated = await approveTransaction(transaction.id);
-          showToast(
-            updated.status === "COMPLETED"
-              ? "双方が承諾し、仮想ポイント取引が完了しました"
-              : "承諾しました。相手の承諾を待っています",
-          );
+          const updated = alreadyApproved
+            ? await revokeTransactionApproval(transaction.id)
+            : await approveTransaction(transaction.id);
+          let message = "承諾しました。相手の承諾を待っています";
+          if (alreadyApproved) message = "承認を取り消しました";
+          if (updated.status === "COMPLETED") {
+            message = "双方が承諾し、仮想ポイント取引が完了しました";
+          }
+          showToast(message);
           render();
         } catch (error) {
           showToast(error.message);
@@ -497,17 +502,22 @@ function renderDetail(book, session) {
 
   const isOwnListing = session.authenticated && book.sellerId === session.userId;
   const hasEnoughPoints = session.pointBalance >= book.price;
+  const canCancelListing = isOwnListing && book.status === "AVAILABLE";
   const canPurchase =
     session.authenticated && book.status === "AVAILABLE" && !isOwnListing && hasEnoughPoints;
   const paymentPreview = createPaymentPreview(book, session, isOwnListing);
   const commentsPanel = createCommentsPanel(book, session);
-  purchaseButton.className = "primary-button";
+  purchaseButton.className = isOwnListing ? "danger-button" : "primary-button";
   purchaseButton.type = "button";
-  purchaseButton.disabled = !canPurchase;
+  purchaseButton.disabled = isOwnListing ? !canCancelListing : !canPurchase;
   if (!session.authenticated) {
     purchaseButton.textContent = "アカウント選択後に購入";
   } else if (isOwnListing) {
-    purchaseButton.textContent = "自分の出品は購入不可";
+    purchaseButton.textContent = canCancelListing
+      ? "出品を取り消す"
+      : book.status === "NEGOTIATING"
+        ? "取引中のため取り消し不可"
+        : "売却済み";
   } else if (!hasEnoughPoints) {
     purchaseButton.textContent = "デモ残高不足";
   } else {
@@ -515,6 +525,20 @@ function renderDetail(book, session) {
   }
 
   purchaseButton.addEventListener("click", async () => {
+    if (isOwnListing) {
+      if (!canCancelListing || !window.confirm(`「${book.title}」の出品を取り消しますか？`)) {
+        return;
+      }
+      try {
+        await cancelListing(book.id);
+        state.activeBookId = "";
+        showToast("出品を取り消しました");
+        render();
+      } catch (error) {
+        showToast(error.message);
+      }
+      return;
+    }
     try {
       const transaction = await requestPurchase(book.id);
       state.activeBookId = transaction.bookId;

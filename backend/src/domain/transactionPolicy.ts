@@ -7,12 +7,16 @@ type ApprovalState = {
   sellerApproved: boolean;
 };
 
+function participantRole(transaction: ApprovalState, currentUserId: number) {
+  if (transaction.buyerId === currentUserId) return "buyer";
+  if (transaction.sellerId === currentUserId) return "seller";
+  throw new AppError(403, "FORBIDDEN", "購入者または出品者だけが承認を変更できます");
+}
+
 export function nextApprovalState(transaction: ApprovalState, currentUserId: number) {
-  const isBuyer = transaction.buyerId === currentUserId;
-  const isSeller = transaction.sellerId === currentUserId;
-  if (!isBuyer && !isSeller) {
-    throw new AppError(403, "FORBIDDEN", "購入者または出品者だけが承諾できます");
-  }
+  const role = participantRole(transaction, currentUserId);
+  const isBuyer = role === "buyer";
+  const isSeller = role === "seller";
   if ((isBuyer && transaction.buyerApproved) || (isSeller && transaction.sellerApproved)) {
     throw new AppError(409, "ALREADY_APPROVED", "このアカウントはすでに承諾しています");
   }
@@ -23,5 +27,17 @@ export function nextApprovalState(transaction: ApprovalState, currentUserId: num
     buyerApproved,
     sellerApproved,
     shouldComplete: buyerApproved && sellerApproved,
+  };
+}
+
+export function revokedApprovalState(transaction: ApprovalState, currentUserId: number) {
+  const role = participantRole(transaction, currentUserId);
+  const isBuyer = role === "buyer";
+  if ((isBuyer && !transaction.buyerApproved) || (!isBuyer && !transaction.sellerApproved)) {
+    throw new AppError(409, "APPROVAL_NOT_FOUND", "このアカウントの承認は取り消し済みです");
+  }
+  return {
+    buyerApproved: isBuyer ? false : transaction.buyerApproved,
+    sellerApproved: isBuyer ? transaction.sellerApproved : false,
   };
 }

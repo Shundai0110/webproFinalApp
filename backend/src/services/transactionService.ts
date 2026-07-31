@@ -1,6 +1,6 @@
 import { Prisma } from "@prisma/client";
 import { env } from "../config/env.js";
-import { nextApprovalState } from "../domain/transactionPolicy.js";
+import { nextApprovalState, revokedApprovalState } from "../domain/transactionPolicy.js";
 import { AppError } from "../errors/AppError.js";
 import { prisma } from "../lib/prisma.js";
 import { ephemeralStore } from "../lib/ephemeralStore.js";
@@ -89,12 +89,19 @@ export async function getTransaction(currentUserId: number, id: number) {
 export async function approveTransaction(currentUserId: number, id: number, input: unknown) {
   const body = inputRecord(input);
   allowOnly(body, ["action"]);
-  if (requiredString(body, "action", 20) !== "APPROVE") {
-    throw new AppError(400, "VALIDATION_ERROR", "actionはAPPROVEを指定してください");
+  const action = requiredString(body, "action", 20);
+  if (action !== "APPROVE" && action !== "REVOKE_APPROVAL") {
+    throw new AppError(
+      400,
+      "VALIDATION_ERROR",
+      "actionはAPPROVEまたはREVOKE_APPROVALを指定してください",
+    );
   }
 
   if (env.storageMode === "ephemeral") {
-    return ephemeralStore.approveTransaction(currentUserId, id);
+    return action === "APPROVE"
+      ? ephemeralStore.approveTransaction(currentUserId, id)
+      : ephemeralStore.revokeTransactionApproval(currentUserId, id);
   }
 
   return prisma.$transaction(
@@ -108,6 +115,18 @@ export async function approveTransaction(currentUserId: number, id: number, inpu
       }
       if (transaction.status !== "PENDING") {
         throw new AppError(409, "TRANSACTION_CLOSED", "この取引はすでに終了しています");
+      }
+
+      if (action === "REVOKE_APPROVAL") {
+        const approval = revokedApprovalState(transaction, currentUserId);
+        return tx.transaction.update({
+          where: { id },
+          data: {
+            buyerApproved: approval.buyerApproved,
+            sellerApproved: approval.sellerApproved,
+          },
+          include: transactionInclude,
+        });
       }
 
       const approval = nextApprovalState(transaction, currentUserId);
@@ -169,13 +188,13 @@ export async function approveTransaction(currentUserId: number, id: number, inpu
             userId: transaction.buyerId,
             transactionId: transaction.id,
             type: "TRANSACTION_COMPLETED",
-            message: `${transaction.book.title} の取引が完了し、${transaction.offeredPrice} ptを支払いました`,
+            message: `${transaction.book.title} の取引が完了し、${transaction.offeredPrice}円（デモ）を支払いました`,
           },
           {
             userId: transaction.sellerId,
             transactionId: transaction.id,
             type: "TRANSACTION_COMPLETED",
-            message: `${transaction.book.title} の取引が完了し、${transaction.offeredPrice} ptを受け取りました`,
+            message: `${transaction.book.title} の取引が完了し、${transaction.offeredPrice}円（デモ）を受け取りました`,
           },
         ],
       });

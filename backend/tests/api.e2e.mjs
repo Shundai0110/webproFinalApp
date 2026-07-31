@@ -6,6 +6,7 @@ import { ephemeralStore } from "../dist/lib/ephemeralStore.js";
 
 test("two demo users share API data and complete a virtual-point trade", async () => {
   ephemeralStore.reset();
+  const initialBookCount = ephemeralStore.stats().books;
   const api = request(createApp());
 
   const firstOpen = await api.post("/api/demo/open").send({}).expect(201);
@@ -37,7 +38,7 @@ test("two demo users share API data and complete a virtual-point trade", async (
     .set("Authorization", `Bearer ${buyerToken}`)
     .expect(200);
   assert.equal(page.body.data.items.length, 2);
-  assert.equal(page.body.data.pagination.total, 5);
+  assert.equal(page.body.data.pagination.total, initialBookCount + 1);
   assert.equal(page.body.data.pagination.pageSize, 2);
   assert.ok(page.headers["x-request-id"]);
   assert.equal(page.headers["ratelimit-limit"], "180");
@@ -48,6 +49,27 @@ test("two demo users share API data and complete a virtual-point trade", async (
     .send({ bookId: book.id, offeredPrice: 500 })
     .expect(400);
   assert.equal(ownPurchase.body.error.code, "SELF_PURCHASE");
+
+  const cancellable = await api
+    .post("/api/books")
+    .set("Authorization", `Bearer ${sellerToken}`)
+    .send({
+      title: "Cancellable E2E Book",
+      price: 600,
+      usedLesson: "E2E取消演習",
+      usedYear: 2026,
+      materialType: "REFERENCE",
+    })
+    .expect(201);
+  await api
+    .delete(`/api/books/${cancellable.body.data.id}`)
+    .set("Authorization", `Bearer ${buyerToken}`)
+    .expect(403);
+  const cancelled = await api
+    .delete(`/api/books/${cancellable.body.data.id}`)
+    .set("Authorization", `Bearer ${sellerToken}`)
+    .expect(200);
+  assert.equal(cancelled.body.data.status, "CANCELLED");
 
   const requested = await api
     .post("/api/transactions")
@@ -63,6 +85,28 @@ test("two demo users share API data and complete a virtual-point trade", async (
     .expect(200);
   assert.equal(buyerApproved.body.data.status, "PENDING");
 
+  const buyerRevoked = await api
+    .patch(`/api/transactions/${transactionId}`)
+    .set("Authorization", `Bearer ${buyerToken}`)
+    .send({ action: "REVOKE_APPROVAL" })
+    .expect(200);
+  assert.equal(buyerRevoked.body.data.status, "PENDING");
+  assert.equal(buyerRevoked.body.data.buyerApproved, false);
+  assert.equal(buyerRevoked.body.data.book.status, "NEGOTIATING");
+
+  const duplicateRevoke = await api
+    .patch(`/api/transactions/${transactionId}`)
+    .set("Authorization", `Bearer ${buyerToken}`)
+    .send({ action: "REVOKE_APPROVAL" })
+    .expect(409);
+  assert.equal(duplicateRevoke.body.error.code, "APPROVAL_NOT_FOUND");
+
+  await api
+    .patch(`/api/transactions/${transactionId}`)
+    .set("Authorization", `Bearer ${buyerToken}`)
+    .send({ action: "APPROVE" })
+    .expect(200);
+
   const completed = await api
     .patch(`/api/transactions/${transactionId}`)
     .set("Authorization", `Bearer ${sellerToken}`)
@@ -70,6 +114,13 @@ test("two demo users share API data and complete a virtual-point trade", async (
     .expect(200);
   assert.equal(completed.body.data.status, "COMPLETED");
   assert.equal(completed.body.data.book.status, "SOLD");
+
+  const completedRevoke = await api
+    .patch(`/api/transactions/${transactionId}`)
+    .set("Authorization", `Bearer ${buyerToken}`)
+    .send({ action: "REVOKE_APPROVAL" })
+    .expect(409);
+  assert.equal(completedRevoke.body.error.code, "TRANSACTION_CLOSED");
 
   const seller = await api
     .get("/api/users/me")
@@ -93,13 +144,13 @@ test("two demo users share API data and complete a virtual-point trade", async (
     .type("form")
     .send({ clientId: firstOpen.body.data.clientId })
     .expect(200);
-  assert.equal(ephemeralStore.stats().books, 5);
+  assert.equal(ephemeralStore.stats().books, initialBookCount + 2);
   await api
     .post("/api/demo/close")
     .type("form")
     .send({ clientId: secondOpen.body.data.clientId })
     .expect(200);
-  assert.equal(ephemeralStore.stats().books, 4);
+  assert.equal(ephemeralStore.stats().books, initialBookCount);
 
   const health = await api.get("/api/health").expect(200);
   assert.equal(health.body.data.storage.status, "up");

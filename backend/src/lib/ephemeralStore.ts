@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { DatabaseSync } from "node:sqlite";
 import { MAX_DEMO_ACCOUNTS, NEW_DEMO_ACCOUNT_POINTS } from "../domain/constants.js";
-import { nextApprovalState } from "../domain/transactionPolicy.js";
+import { nextApprovalState, revokedApprovalState } from "../domain/transactionPolicy.js";
 import { AppError } from "../errors/AppError.js";
 
 type SqlValue = null | number | bigint | string | NodeJS.ArrayBufferView;
@@ -533,16 +533,42 @@ export class EphemeralStore {
         Number(transaction.buyerId),
         id,
         Number(transaction.bookId),
-        `${title} の取引が完了し、${amount} ptを支払いました`,
+        `${title} の取引が完了し、${amount}円（デモ）を支払いました`,
         now,
       );
       notify.run(
         Number(transaction.sellerId),
         id,
         Number(transaction.bookId),
-        `${title} の取引が完了し、${amount} ptを受け取りました`,
+        `${title} の取引が完了し、${amount}円（デモ）を受け取りました`,
         now,
       );
+      return this.getTransaction(id)!;
+    });
+  }
+
+  revokeTransactionApproval(currentUserId: number, id: number) {
+    return this.#transaction(() => {
+      const transaction = this.getTransaction(id);
+      if (!transaction) {
+        throw new AppError(404, "TRANSACTION_NOT_FOUND", "取引が見つかりません");
+      }
+      if (transaction.status !== "PENDING") {
+        throw new AppError(409, "TRANSACTION_CLOSED", "成立済みの取引は承認を取り消せません");
+      }
+      const approval = revokedApprovalState(transaction, currentUserId);
+      this.#db
+        .prepare(`
+          UPDATE transactions
+          SET buyer_approved = ?, seller_approved = ?, updated_at = ?
+          WHERE id = ? AND status = 'PENDING'
+        `)
+        .run(
+          Number(approval.buyerApproved),
+          Number(approval.sellerApproved),
+          isoNow(),
+          id,
+        );
       return this.getTransaction(id)!;
     });
   }

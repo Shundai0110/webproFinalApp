@@ -36,9 +36,26 @@ test("ephemeral database enforces trade rules and resets all runtime changes", (
   assert.equal(buyerApproved.status, "PENDING");
   assert.equal(buyerApproved.buyerApproved, true);
 
+  const buyerRevoked = ephemeralStore.revokeTransactionApproval(
+    buyerBefore.id,
+    requested.id,
+  );
+  assert.equal(buyerRevoked.status, "PENDING");
+  assert.equal(buyerRevoked.buyerApproved, false);
+  assert.equal(buyerRevoked.book.status, "NEGOTIATING");
+  assert.throws(
+    () => ephemeralStore.revokeTransactionApproval(buyerBefore.id, requested.id),
+    /取り消し済み/,
+  );
+  ephemeralStore.approveTransaction(buyerBefore.id, requested.id);
+
   const completed = ephemeralStore.approveTransaction(book.sellerId, requested.id);
   assert.equal(completed.status, "COMPLETED");
   assert.equal(ephemeralStore.getBook(book.id).status, "SOLD");
+  assert.throws(
+    () => ephemeralStore.revokeTransactionApproval(buyerBefore.id, requested.id),
+    /成立済み/,
+  );
   assert.equal(
     ephemeralStore.getUser(buyerBefore.id).pointBalance,
     buyerBefore.pointBalance - book.price,

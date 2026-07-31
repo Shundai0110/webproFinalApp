@@ -80,6 +80,21 @@ test("frontend uses the shared API and keeps only the signed session in browser 
       seller: users[1],
     },
   ];
+  const transactions = [
+    {
+      id: 20,
+      bookId: 10,
+      buyerId: 1,
+      sellerId: 2,
+      offeredPrice: 1200,
+      buyerApproved: true,
+      sellerApproved: false,
+      status: "PENDING",
+      book: books[0],
+      buyer: users[0],
+      seller: users[1],
+    },
+  ];
   let activeUser = users[0];
   let token = "signed-demo-token-1";
 
@@ -119,7 +134,7 @@ test("frontend uses the shared API and keeps only the signed session in browser 
     if (authorization !== `Bearer ${token}`) return apiError("デモ認証が必要です");
     if (method === "GET" && path === "/users/me") return json(activeUser);
     if (method === "GET" && path === "/books") return json(books);
-    if (method === "GET" && path === "/transactions") return json([]);
+    if (method === "GET" && path === "/transactions") return json(transactions);
     if (method === "GET" && path === "/notifications") return json([]);
     if (method === "GET" && path === "/comments") return json([]);
     if (method === "POST" && path === "/books") {
@@ -132,6 +147,20 @@ test("frontend uses the shared API and keeps only the signed session in browser 
       };
       books.push(created);
       return json(created, 201);
+    }
+    if (method === "DELETE" && path.startsWith("/books/")) {
+      const id = Number(path.split("/").at(-1));
+      const index = books.findIndex((book) => book.id === id);
+      const cancelled = { ...books[index], status: "CANCELLED" };
+      books.splice(index, 1);
+      return json(cancelled);
+    }
+    if (method === "PATCH" && path === "/transactions/20") {
+      transactions[0] = {
+        ...transactions[0],
+        buyerApproved: body.action === "APPROVE",
+      };
+      return json(transactions[0]);
     }
     return apiError(`unexpected mock route: ${method} ${path}`, 404);
   };
@@ -162,6 +191,21 @@ test("frontend uses the shared API and keeps only the signed session in browser 
   );
   assert.equal(createBookRequest.headers.Authorization, "Bearer signed-demo-token-1");
   assert.equal(createBookRequest.body.title, "API経由の出品");
+
+  const cancelled = await api.cancelListing(listing.id);
+  assert.equal(cancelled.status, "CANCELLED");
+  assert.ok(
+    requests.some(
+      (request) => request.path === "/books/11" && request.method === "DELETE",
+    ),
+  );
+
+  const revoked = await api.revokeTransactionApproval(20);
+  assert.equal(revoked.buyerApproved, false);
+  const revokeRequest = requests.find(
+    (request) => request.path === "/transactions/20" && request.method === "PATCH",
+  );
+  assert.equal(revokeRequest.body.action, "REVOKE_APPROVAL");
 
   const account = await api.createDemoAccount({
     nickname: "Demo Three",

@@ -10,7 +10,7 @@ Express 5 / TypeScript / Prisma 7 / MySQLによるデモAPIです。実決済、
 - `POST /api/books`, `PATCH /api/books/:id`, `DELETE /api/books/:id`: 出品者限定の作成・更新・取消
 - `POST /api/transactions`: 自己購入、状態、残高を検証した購入相談
 - `GET /api/transactions/:id`: 購入者・出品者限定の取引取得
-- `PATCH /api/transactions/:id`: 双方承諾と取引成立
+- `PATCH /api/transactions/:id`: 双方承諾、成立前の自分の承認撤回、取引成立
 - `GET /api/notifications`: 自分宛ての取引成立通知
 - `GET /api/health`: 疎通確認
 
